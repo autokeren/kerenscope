@@ -14,7 +14,7 @@ var (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "keren",
+	Use:   "keren [question]",
 	Short: "KerenScope — autonomous financial research agent for the Indonesian market, powered by Sectors",
 	Long: `KerenScope is an autonomous financial research agent.
 
@@ -24,6 +24,17 @@ evidence, and writing an evidence-backed report.
 
 Information and analysis only — not investment advice.`,
 	Version: "0.1.0",
+	Args:  cobra.MaximumNArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		if len(args) == 1 {
+			if err := runResearch(cmd, args); err != nil {
+				fmt.Fprintln(os.Stderr, "Error:", err)
+				os.Exit(1)
+			}
+			return
+		}
+		cmd.Help()
+	},
 }
 
 func Execute() {
