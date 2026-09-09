@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/autokeren/kerenscope/internal/llm"
@@ -46,6 +47,16 @@ type Report struct {
 	StartedAt    time.Time
 	EndedAt      time.Time
 }
+
+type PlanApproval int
+
+const (
+	PlanApprove PlanApproval = iota
+	PlanRegenerate
+	PlanAbort
+)
+
+type ApprovePlan func(plan Plan, attempt int) PlanApproval
 
 type Event interface{}
 
@@ -94,7 +105,7 @@ func New(llmProvider llm.Provider, registry *tools.Registry) *Agent {
 	}
 }
 
-func (a *Agent) Research(ctx context.Context, question string, emit func(Event)) (*Report, error) {
+func (a *Agent) Research(ctx context.Context, question string, emit func(Event), approve ApprovePlan) (*Report, error) {
 	if a.LLM == nil {
 		return nil, fmt.Errorf("agent: LLM provider is nil")
 	}
@@ -103,14 +114,11 @@ func (a *Agent) Research(ctx context.Context, question string, emit func(Event))
 	}
 	report := &Report{Question: question, StartedAt: time.Now().UTC()}
 
-	plan, err := a.makePlan(ctx, question)
+	plan, err := a.makePlanApproved(ctx, question, emit, approve)
 	if err != nil {
 		return nil, fmt.Errorf("planning failed: %w", err)
 	}
 	report.Plan = plan
-	if emit != nil {
-		emit(PlanEvent{Plan: plan})
-	}
 
 	state := newComputeState()
 	draft, used, evidenceStore, err := a.execute(ctx, question, plan, emit, state)
@@ -136,7 +144,32 @@ func (a *Agent) Research(ctx context.Context, question string, emit func(Event))
 	return report, nil
 }
 
-func (a *Agent) makePlan(ctx context.Context, question string) (Plan, error) {
+func (a *Agent) makePlanApproved(ctx context.Context, question string, emit func(Event), approve ApprovePlan) (Plan, error) {
+	var feedback string
+	for attempt := 0; attempt < 3; attempt++ {
+		plan, err := a.makePlan(ctx, question, feedback)
+		if err != nil {
+			return Plan{}, err
+		}
+		if emit != nil {
+			emit(PlanEvent{Plan: plan})
+		}
+		if approve == nil {
+			return plan, nil
+		}
+		switch approve(plan, attempt) {
+		case PlanApprove:
+			return plan, nil
+		case PlanAbort:
+			return Plan{}, fmt.Errorf("research aborted by user before execution")
+		default:
+			feedback = "The user rejected this plan. Produce a different research approach."
+		}
+	}
+	return Plan{}, fmt.Errorf("plan approval failed after 3 attempts")
+}
+
+func (a *Agent) makePlan(ctx context.Context, question string, feedback string) (Plan, error) {
 	system := "You are the research planner of KerenScope, an autonomous financial research agent for the Indonesian stock market. Today is " +
 		time.Now().UTC().Format("2006-01-02") + ".\n\n" +
 		"Given the user's research question, produce a focused research plan of 2-8 steps. " +
@@ -145,6 +178,9 @@ func (a *Agent) makePlan(ctx context.Context, question string) (Plan, error) {
 		"company_report for a specific ticker, subsector_report for peer context, and price_history/foreign_flow/broker_summary/insider_filings/news for signal checks. " +
 		"Do not include writing or analysis steps — only data-gathering steps. Call the submit_plan tool exactly once.\n\n" +
 		"Available tools:\n" + a.toolCatalog()
+	if feedback != "" {
+		system += "\n\n" + feedback
+	}
 	plan, err := a.callSubmitPlan(ctx, system, question)
 	if err != nil {
 		return Plan{}, err
@@ -262,24 +298,43 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 		}
 		assistant := llm.Message{Role: "assistant", Content: resp.Content, ToolCalls: resp.ToolCalls}
 		messages = append(messages, assistant)
-		for _, call := range resp.ToolCalls {
+		type executed struct {
+			call      llm.ToolCall
+			args      map[string]any
+			result    tools.Result
+			resultStr string
+		}
+		batch := make([]executed, len(resp.ToolCalls))
+		sem := make(chan struct{}, 3)
+		var wg sync.WaitGroup
+		for i, call := range resp.ToolCalls {
 			toolCallCount++
 			used = append(used, call.Name)
 			var args map[string]any
 			if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil {
 				args = map[string]any{}
 			}
-			result := a.Tools.Run(ctx, call.Name, args)
-			resultJSON, _ := json.Marshal(result)
-			resultStr := trimResult(string(resultJSON), a.MaxResultChars)
-			if extra := a.postProcess(call.Name, args, result, state); extra != "" {
-				resultStr += extra
-			}
-			store = append(store, evidence{Tool: call.Name, Args: args, Result: trimResult(string(resultJSON), a.MaxResultChars)})
-			messages = append(messages, llm.Message{Role: "tool", ToolCallID: call.ID, Name: call.Name, Content: resultStr})
-			if emit != nil {
-				emit(ToolDoneEvent{Index: toolCallCount, OK: result.OK, Tool: call.Name, Summary: resultSummary(result)})
-			}
+			wg.Add(1)
+			go func(i int, call llm.ToolCall, args map[string]any) {
+				defer wg.Done()
+				sem <- struct{}{}
+				defer func() { <-sem }()
+				result := a.Tools.Run(ctx, call.Name, args)
+				resultJSON, _ := json.Marshal(result)
+				resultStr := trimResult(string(resultJSON), a.MaxResultChars)
+				if extra := a.postProcess(call.Name, args, result, state); extra != "" {
+					resultStr += extra
+				}
+				batch[i] = executed{call: call, args: args, result: result, resultStr: resultStr}
+				if emit != nil {
+					emit(ToolDoneEvent{Index: i + 1, OK: result.OK, Tool: call.Name, Summary: resultSummary(result)})
+				}
+			}(i, call, args)
+		}
+		wg.Wait()
+		for _, ex := range batch {
+			store = append(store, evidence{Tool: ex.call.Name, Args: ex.args, Result: trimResult(mustJSON(ex.result), a.MaxResultChars)})
+			messages = append(messages, llm.Message{Role: "tool", ToolCallID: ex.call.ID, Name: ex.call.Name, Content: ex.resultStr})
 		}
 	}
 	return "", used, store, fmt.Errorf("executor reached max turns (%d) without a final draft", a.MaxActTurns)

@@ -3,6 +3,7 @@ package agent
 import (
 	"encoding/json"
 	"strings"
+	"sync"
 
 	"github.com/autokeren/kerenscope/internal/compute"
 	"github.com/autokeren/kerenscope/internal/sectors"
@@ -11,9 +12,10 @@ import (
 )
 
 type computeState struct {
-	companies     map[string]*compute.CompanyMetrics
-	facts         []verify.Fact
-	lastCompared  int
+	mu           sync.Mutex
+	companies    map[string]*compute.CompanyMetrics
+	facts        []verify.Fact
+	lastCompared int
 }
 
 func newComputeState() *computeState {
@@ -22,6 +24,8 @@ func newComputeState() *computeState {
 
 func (s *computeState) company(symbol string) *compute.CompanyMetrics {
 	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if c, ok := s.companies[symbol]; ok {
 		return c
 	}
@@ -35,12 +39,17 @@ func (s *computeState) registerFacts(prefix string, v any) {
 	if err != nil {
 		return
 	}
-	for _, f := range verify.CollectFacts(string(data)) {
+	facts := verify.CollectFacts(string(data))
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, f := range facts {
 		s.facts = append(s.facts, verify.Fact{Value: f.Value, Path: prefix + f.Path})
 	}
 }
 
 func (s *computeState) comparison() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	var ms []compute.CompanyMetrics
 	for _, c := range s.companies {
 		if c.Quarterly != nil || c.Valuation != nil {

@@ -27,7 +27,7 @@ Information and analysis only — not investment advice.`,
 	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) == 1 {
-			if err := runResearch(cmd, args); err != nil {
+			if err := runResearchQuestion(cmd.Context(), args[0]); err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				os.Exit(1)
 			}
