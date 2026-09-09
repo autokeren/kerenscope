@@ -9,6 +9,7 @@ import (
 
 	"github.com/autokeren/kerenscope/internal/llm"
 	"github.com/autokeren/kerenscope/internal/tools"
+	"github.com/autokeren/kerenscope/internal/verify"
 )
 
 type PlanStep struct {
@@ -33,6 +34,7 @@ type Verification struct {
 	Claims      []Claim `json:"claims"`
 	Confidence  int     `json:"confidence"`
 	Limitations []string `json:"limitations"`
+	Numeric     verify.NumericCheck `json:"numeric"`
 }
 
 type Report struct {
@@ -110,7 +112,8 @@ func (a *Agent) Research(ctx context.Context, question string, emit func(Event))
 		emit(PlanEvent{Plan: plan})
 	}
 
-	draft, used, evidenceStore, err := a.execute(ctx, question, plan, emit)
+	state := newComputeState()
+	draft, used, evidenceStore, err := a.execute(ctx, question, plan, emit, state)
 	if err != nil {
 		return nil, fmt.Errorf("execution failed: %w", err)
 	}
@@ -120,9 +123,9 @@ func (a *Agent) Research(ctx context.Context, question string, emit func(Event))
 		emit(DraftEvent{Draft: draft})
 	}
 
-	verification, err := a.verify(ctx, question, draft, evidenceStore)
+	verification, err := a.verify(ctx, question, draft, evidenceStore, state)
 	if err != nil {
-		verification = Verification{Claims: nil, Confidence: 0, Limitations: []string{"verification step failed: " + err.Error()}}
+		verification.Limitations = append(verification.Limitations, "verification step failed: "+err.Error())
 	}
 	report.Verification = verification
 	if emit != nil {
@@ -216,7 +219,7 @@ func (a *Agent) validatePlan(plan Plan) (Plan, bool, string) {
 	return plan, true, ""
 }
 
-func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit func(Event)) (string, []string, []evidence, error) {
+func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit func(Event), state *computeState) (string, []string, []evidence, error) {
 	planJSON, _ := json.MarshalIndent(plan, "", "  ")
 	system := "You are KerenScope, an autonomous financial research agent for the Indonesian stock market. Today is " +
 		time.Now().UTC().Format("2006-01-02") + ".\n\n" +
@@ -225,6 +228,7 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 		"- Call the tools in plan order. Pass concrete arguments. If a tool fails or returns no data, adapt (use a different tool or adjust arguments) instead of giving up.\n" +
 		"- When all the data you need is gathered, STOP calling tools and write your final analysis draft in Markdown.\n" +
 		"- The draft must: answer the research question directly, cite concrete numbers from the data you saw (state them explicitly), and note data limitations honestly. Write in the same language as the question.\n" +
+		"- Tool results may end with [COMPUTED ... METRICS] or [COMPARISON] blocks. Those are deterministic values computed by the KerenScope engine: cite them verbatim and never do arithmetic yourself.\n" +
 		"- You are an information and analysis tool. Never give investment advice or buy/sell recommendations.\n\n" +
 		"Available tools:\n" + a.toolCatalog()
 
@@ -268,7 +272,10 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 			result := a.Tools.Run(ctx, call.Name, args)
 			resultJSON, _ := json.Marshal(result)
 			resultStr := trimResult(string(resultJSON), a.MaxResultChars)
-			store = append(store, evidence{Tool: call.Name, Args: args, Result: resultStr})
+			if extra := a.postProcess(call.Name, args, result, state); extra != "" {
+				resultStr += extra
+			}
+			store = append(store, evidence{Tool: call.Name, Args: args, Result: trimResult(string(resultJSON), a.MaxResultChars)})
 			messages = append(messages, llm.Message{Role: "tool", ToolCallID: call.ID, Name: call.Name, Content: resultStr})
 			if emit != nil {
 				emit(ToolDoneEvent{Index: toolCallCount, OK: result.OK, Tool: call.Name, Summary: resultSummary(result)})
@@ -278,17 +285,40 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 	return "", used, store, fmt.Errorf("executor reached max turns (%d) without a final draft", a.MaxActTurns)
 }
 
-func (a *Agent) verify(ctx context.Context, question, draft string, store []evidence) (Verification, error) {
+func (a *Agent) verify(ctx context.Context, question, draft string, store []evidence, state *computeState) (Verification, error) {
+	raws := make([]string, len(store))
+	for i, ev := range store {
+		raws[i] = ev.Result
+	}
+	facts := verify.CollectFacts(raws...)
+	facts = append(facts, state.facts...)
+	numeric := verify.CheckNumbers(draft, facts)
+
 	var b strings.Builder
-	b.WriteString("Research question: " + question + "\n\nFinal analysis draft:\n" + draft + "\n\nEvidence gathered (per tool call):\n")
+	b.WriteString("Research question: " + question + "\n\nFinal analysis draft:\n" + draft + "\n\n")
+	if len(numeric.Matched) > 0 || len(numeric.Unmatched) > 0 {
+		b.WriteString(fmt.Sprintf("Deterministic numeric check already performed by the engine: %d draft numbers matched the evidence; %d could not be matched.\n", len(numeric.Matched), len(numeric.Unmatched)))
+		b.WriteString("Matched numbers (do NOT re-verify these):\n")
+		for _, m := range numeric.Matched {
+			b.WriteString(fmt.Sprintf("  %s -> %s\n", m.Number, m.Source))
+		}
+		b.WriteString("Unmatched numbers (adjudicate these: derived/rounded from evidence = supported with explanation; absent from evidence = unsupported):\n")
+		for _, u := range numeric.Unmatched {
+			b.WriteString("  " + u + "\n")
+		}
+		b.WriteString("\n")
+	}
+	b.WriteString("Evidence gathered (per tool call):\n")
 	for i, ev := range store {
 		b.WriteString(fmt.Sprintf("\n[%d] tool=%s args=%s\nresult: %s\n", i+1, ev.Tool, mustJSON(ev.Args), trimResult(ev.Result, a.EvidenceDigestChars)))
 	}
 	system := "You are the verification unit of KerenScope, an autonomous financial research agent for the Indonesian stock market. " +
-		"Cross-check every concrete factual claim in the analysis draft against the evidence data. " +
-		"Call the submit_verification tool exactly once with: entries for the 10-15 most important concrete claims (claim text, supported true/false, and the specific evidence that proves or contradicts it — cite the number from the evidence), " +
-		"an overall confidence score 0-100 reflecting how well the draft is supported by the evidence, and honest limitations (missing data, unverified assumptions, stale data). " +
-		"Be strict but concise: if the draft cites a number that does not appear in the evidence, mark it unsupported. Do not over-reason — verify numbers directly."
+		"A deterministic numeric check has already matched draft numbers against the evidence. Your job: verify the 10-15 most important claims. " +
+		"For semantic claims (trends, rankings, causal statements, conclusions), check them against the evidence. " +
+		"Numbers listed as matched are already supported. For unmatched numbers, decide whether they are derived from the evidence (supported) or absent (unsupported). " +
+		"Call the submit_verification tool exactly once with: the claims (claim text, supported true/false, specific evidence), " +
+		"an overall confidence score 0-100, and honest limitations (missing data, unverified assumptions, stale data). " +
+		"Be strict but concise: do not over-reason — verify directly."
 	resp, err := a.LLM.Complete(ctx, llm.Request{
 		Messages: []llm.Message{
 			{Role: "system", Content: system},
@@ -299,7 +329,9 @@ func (a *Agent) verify(ctx context.Context, question, draft string, store []evid
 		Temperature: 0.1,
 	})
 	if err != nil {
-		return Verification{}, err
+		verification := Verification{Numeric: numeric}
+		verification.Limitations = []string{"LLM verification call failed: " + err.Error()}
+		return verification, nil
 	}
 	for _, call := range resp.ToolCalls {
 		if call.Name != "submit_verification" {
@@ -307,11 +339,12 @@ func (a *Agent) verify(ctx context.Context, question, draft string, store []evid
 		}
 		var v Verification
 		if err := json.Unmarshal([]byte(call.Arguments), &v); err != nil {
-			return Verification{}, fmt.Errorf("submit_verification arguments must be valid JSON: %w", err)
+			return Verification{Numeric: numeric}, fmt.Errorf("submit_verification arguments must be valid JSON: %w", err)
 		}
+		v.Numeric = numeric
 		return v, nil
 	}
-	return Verification{}, fmt.Errorf("model did not call submit_verification (finish=%s reply: %s)", resp.FinishReason, truncate(resp.Content, 200))
+	return Verification{Numeric: numeric}, fmt.Errorf("model did not call submit_verification (finish=%s reply: %s)", resp.FinishReason, truncate(resp.Content, 200))
 }
 
 func llmTools(registry *tools.Registry) []llm.ToolDef {

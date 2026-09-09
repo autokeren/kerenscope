@@ -93,6 +93,7 @@ func renderEvent(ev agent.Event) {
 			}
 		}
 		fmt.Printf("\n  Verification: %d/%d claims supported · confidence %d/100\n", supported, len(e.Verification.Claims), e.Verification.Confidence)
+		fmt.Printf("  Numeric check: %d matched, %d unmatched (deterministic)\n", len(e.Verification.Numeric.Matched), len(e.Verification.Numeric.Unmatched))
 		for _, l := range e.Verification.Limitations {
 			fmt.Printf("  ⚠ %s\n", l)
 		}

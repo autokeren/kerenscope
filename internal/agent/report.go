@@ -32,6 +32,16 @@ func (r *Report) Render() string {
 	if r.Verification.Confidence > 0 {
 		b.WriteString(fmt.Sprintf("## Confidence\n\n**%d/100**\n\n", r.Verification.Confidence))
 	}
+	if len(r.Verification.Numeric.Matched) > 0 || len(r.Verification.Numeric.Unmatched) > 0 {
+		b.WriteString(fmt.Sprintf("## Numeric verification (deterministic)\n\n%d draft numbers matched the evidence exactly (tolerance 0.6%%).\n", len(r.Verification.Numeric.Matched)))
+		if len(r.Verification.Numeric.Unmatched) > 0 {
+			b.WriteString(fmt.Sprintf("%d numbers could not be auto-matched and were adjudicated in the verification pass:\n", len(r.Verification.Numeric.Unmatched)))
+			for _, u := range r.Verification.Numeric.Unmatched {
+				b.WriteString(fmt.Sprintf("- %s\n", u))
+			}
+		}
+		b.WriteString("\n")
+	}
 	if len(r.Verification.Limitations) > 0 {
 		b.WriteString("## Limitations\n\n")
 		for _, l := range r.Verification.Limitations {
