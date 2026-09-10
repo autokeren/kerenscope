@@ -362,7 +362,7 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 				}
 				batch[i] = executed{call: call, args: args, result: result, resultStr: resultStr}
 				if emit != nil {
-					emit(ToolDoneEvent{Index: i + 1, OK: result.OK, Tool: call.Name, Summary: resultSummary(result)})
+					emit(ToolDoneEvent{Index: i + 1, OK: result.OK, Tool: call.Name, Summary: resultSummary(call.Name, args, result)})
 				}
 			}(i, call, args)
 		}
@@ -516,17 +516,6 @@ func submitVerificationTool() llm.ToolDef {
 			},
 		},
 	}
-}
-
-func resultSummary(result tools.Result) string {
-	if !result.OK {
-		return "error: " + result.Error
-	}
-	s := mustJSON(result.Data)
-	if len(s) > 80 {
-		s = s[:80] + "..."
-	}
-	return s
 }
 
 func trimResult(s string, max int) string {
