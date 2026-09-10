@@ -20,34 +20,32 @@ Built for [Sectors Hackathon 2026](https://hackathon.sectors.app) — Track 01: 
 ```
 $ keren compare BBCA BBRI BMRI
 
-  Question: Bandingkan BBCA, BBRI, dan BMRI: mana yang fundamentalnya paling kuat?
+╭───────────────────────────────────────────────────╮
+│  KerenScope — Autonomous Financial Research       │
+│  Indonesian market intelligence · Powered by Sectors │
+╰───────────────────────────────────────────────────╯
+  Question
+  Bandingkan BBCA, BBRI, BMRI secara menyeluruh ...
 
-  Research objective
-  ─────────────────
-  Membandingkan fundamental BBCA, BBRI, BMRI (profitabilitas, pertumbuhan,
-  valuasi, tren kuartalan) ...
+  ⠸ planning investigation… 3s
 
-  Plan
-  ────
-  [1/7] company_report      — Laporan lengkap BBCA: valuasi, konsensus analis
-  [2/7] company_report      — Laporan lengkap BBRI
-  [3/7] company_report      — Laporan lengkap BMRI
-  [4/7] quarterly_financials — Tren kuartalan BBCA: laba, NII, kredit, deposito
-  [5/7] quarterly_financials — Tren kuartalan BBRI
-  [6/7] quarterly_financials — Tren kuartalan BMRI
-  [7/7] subsector_report    — Konteks sektor perbankan
+  ◆ Research objective
+    Membandingkan fundamental BBCA, BBRI, BMRI ...
+  ◆ Plan · 8 steps
+     1. company_report      Laporan lengkap BBCA: valuasi, konsensus
+     2. company_report      Laporan lengkap BBRI ...
+    (planned in 3s)
 
-  → company_report      ✓ {"symbol":"BBCA.JK","company_name":"PT Bank Central Asia Tbk."...
-  → company_report      ✓ {"symbol":"BBRI.JK", ...
-  → quarterly_financials ✓ ...           (runs in parallel, disk-cached)
-  ...
-  ✓ Analysis drafted
+    ✓ company_report    BBCA.JK · PT Bank Central Asia Tbk. · market cap Rp796.3T (#1 IDX)
+    ✓ quarterly_financials BBRI · 8 quarters, latest 2026-06-30
+  ✓ Analysis drafted (42s)
 
-  Verification: 13/15 claims supported · confidence 78/100
-  Numeric check: 85 matched, 22 unmatched (deterministic)
+  ◆ Verification
+    ✓ 14/14 claims supported · confidence 93/100
+    ✓ 108 numbers matched deterministically · 29 adjudicated
 
-  Report saved to reports/bandingkan-bbca-bbri-dan-bmri-20260910.md
-  HTML report saved to reports/bandingkan-bbca-bbri-dan-bmri-20260910.html
+  ✓ Report saved to reports/….md
+  ✓ HTML report saved to reports/….html
 ```
 
 Reports are saved as **Markdown and standalone HTML** — the HTML page opens in any
@@ -153,6 +151,8 @@ keren doctor                # diagnose setup: keys, endpoints, cache
 
 During research, the proposed plan is shown first and — on an interactive
 terminal — you choose to **approve / regenerate / quit** before execution.
+The final report reveals line by line instead of dumping a wall of text
+(`--reveal-slow` gives a more dramatic pace for recordings).
 Flags: `--json` (raw output), `--no-cache` (debugging; spends credits).
 
 ## Engineering notes
@@ -163,8 +163,24 @@ Flags: `--json` (raw output), `--no-cache` (debugging; spends credits).
   order preserved.
 - **Deterministic digests** — 90-day price/flow series are never dumped raw into
   context; the engine computes momentum/flow summaries instead.
-- **Resilience** — 429/5xx backoff, `Retry-After` respected, per-call deadline
-  with a low-effort fallback, budget-exceeded paths that stay protocol-correct.
+
+## Reliability — the agent that repairs itself
+
+- **Schema-driven guards** — every call is validated client-side first against
+  the official Sectors OpenAPI spec: 70 endpoint whitelists (209 screener
+  fields, allowed query params per route). Doomed calls are rejected *before*
+  they cost a credit, with the correct options in the message so the model
+  retries properly.
+- **Self-healing screener** — when Sectors rejects a filter with
+  *"Field X requires bracket notation with a year. Example: X[2024]"*, the tool
+  parses the corrected form from the API's own error, rewrites the clause and
+  retries — no LLM involvement, no wasted attempts.
+- **Two-layer model fallback** — a failed call retries at low reasoning effort
+  on the same model, then switches to `KERENSCOPE_LLM_FALLBACK_MODEL`
+  (e.g. GLM-5.3 → GLM-5.3-flash). 429/5xx honor `Retry-After`; every call has
+  a hard per-call deadline.
+- **Graceful degradation** — tool budget exhaustion stays protocol-correct;
+  unrecoverable errors exit with clean, actionable messages instead of a crash.
 
 ## Roadmap
 

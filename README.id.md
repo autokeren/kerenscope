@@ -20,24 +20,32 @@ Dibangun untuk [Sectors Hackathon 2026](https://hackathon.sectors.app) — Track
 ```
 $ keren compare BBCA BBRI BMRI
 
-  Research objective
-  ─────────────────
-  Membandingkan fundamental BBCA, BBRI, BMRI ...
+╭───────────────────────────────────────────────────╮
+│  KerenScope — Autonomous Financial Research       │
+│  Indonesian market intelligence · Powered by Sectors │
+╰───────────────────────────────────────────────────╯
+  Question
+  Bandingkan BBCA, BBRI, BMRI secara menyeluruh ...
 
-  Plan
-  ────
-  [1/7] company_report       — Laporan lengkap BBCA
-  [2/7] quarterly_financials — Tren kuartalan BBRI: laba, NII, kredit
-  ...
-  → company_report      ✓ {"symbol":"BBCA.JK", ...
-  → quarterly_financials ✓ ...          (jalan paralel, hasil di-cache)
-  ✓ Analysis drafted
+  ⠸ planning investigation… 3s
 
-  Verification: 13/15 klaim didukung bukti · confidence 78/100
-  Numeric check: 85 angka ter-match deterministik
+  ◆ Research objective
+    Membandingkan fundamental BBCA, BBRI, BMRI ...
+  ◆ Plan · 8 steps
+     1. company_report      Laporan lengkap BBCA: valuasi, konsensus
+     2. company_report      Laporan lengkap BBRI ...
+    (planned in 3s)
 
-  Report saved to reports/bandingkan-....md
-  HTML report saved to reports/bandingkan-....html
+    ✓ company_report    BBCA.JK · PT Bank Central Asia Tbk. · market cap Rp796.3T (#1 IDX)
+    ✓ quarterly_financials BBRI · 8 quarters, latest 2026-06-30
+  ✓ Analysis drafted (42s)
+
+  ◆ Verification
+    ✓ 14/14 klaim didukung bukti · confidence 93/100
+    ✓ 108 angka ter-match deterministik · 29 diadjudikasi
+
+  ✓ Report saved to reports/….md
+  ✓ HTML report saved to reports/….html
 ```
 
 Laporan disimpan sebagai **Markdown dan HTML mandiri** — halaman HTML-nya
@@ -133,6 +141,8 @@ keren doctor                # periksa setup: key, endpoint, cache
 
 Saat riset berjalan, rencana yang diusulkan ditampilkan dulu dan — di terminal
 interaktif — kamu memilih **approve / regenerate / quit** sebelum eksekusi.
+Laporan akhir muncul baris demi baris, bukan diloncat sekali jalan
+(`--reveal-slow` untuk tempo yang lebih dramatis saat perekaman).
 
 ## Catatan rekayasa
 
@@ -140,8 +150,25 @@ interaktif — kamu memilih **approve / regenerate / quit** sebelum eksekusi.
 - **Eksekusi tool paralel** — batch tool jalan bersamaan, urutan protokol tetap
 - **Digest deterministik** — 90 hari deret harga/arus TIDAK di-dump mentah ke
   context; engine menghitung ringkasannya
-- **Ketahanan** — backoff 429/5xx, `Retry-After` dihormati, deadline per-call
-  dengan fallback effort rendah
+
+## Ketahanan — agen yang memperbaiki dirinya sendiri
+
+- **Guard berbasis skema** — setiap panggilan divalidasi di sisi client dulu
+  terhadap OpenAPI spec resmi Sectors: whitelist 70 endpoint (209 field
+  screener, parameter yang sah per rute). Panggilan yang pasti gagal ditolak
+  *sebelum* menghabiskan kredit, lengkap dengan opsi yang benar di pesan
+  errornya agar model bisa retry dengan tepat.
+- **Screener yang self-healing** — saat Sectors menolak filter dengan
+  *"Field X requires bracket notation with a year. Example: X[2024]"*, tool
+  mem-parsing bentuk yang benar langsung dari pesan error API-nya, menulis
+  ulang clause, dan me-retry — tanpa keterlibatan LLM, tanpa percobaan sia-sia.
+- **Fallback model dua lapis** — panggilan yang gagal di-retry pada effort
+  rendah di model yang sama, lalu berpindah ke
+  `KERENSCOPE_LLM_FALLBACK_MODEL` (mis. GLM-5.3 → GLM-5.3-flash).
+  429/5xx menghormati `Retry-After`; tiap panggilan punya deadline keras.
+- **Degradasi yang anggun** — anggaran tool yang habis tetap protokol-correct;
+  error yang tak terpulihkan keluar sebagai pesan bersih yang actionable,
+  bukan crash.
 
 ## Roadmap
 
