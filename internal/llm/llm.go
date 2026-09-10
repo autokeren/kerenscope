@@ -60,11 +60,12 @@ type FunctionDef struct {
 }
 
 type Request struct {
-	Model       string    `json:"model"`
-	Messages    []Message `json:"messages"`
-	Tools       []ToolDef `json:"tools,omitempty"`
-	MaxTokens   int       `json:"max_tokens,omitempty"`
-	Temperature float64   `json:"temperature,omitempty"`
+	Model           string    `json:"model"`
+	Messages        []Message `json:"messages"`
+	Tools           []ToolDef `json:"tools,omitempty"`
+	MaxTokens       int       `json:"max_tokens,omitempty"`
+	Temperature     float64   `json:"temperature,omitempty"`
+	ReasoningEffort string    `json:"reasoning_effort,omitempty"`
 }
 
 type Usage struct {
@@ -87,7 +88,7 @@ type Provider interface {
 
 var ErrNoAPIKey = errors.New("LLM API key is not set — configure KERENSCOPE_LLM_* environment variables")
 
-const DefaultMaxTokens = 65536
+const DefaultMaxTokens = 32768
 
 func MaxTokensHint() int {
 	if v := os.Getenv("KERENSCOPE_LLM_MAX_TOKENS"); v != "" {

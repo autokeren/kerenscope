@@ -112,6 +112,8 @@ func renderEvent(ev agent.Event) {
 			summary = summary[:90] + "…"
 		}
 		fmt.Printf("  → %-18s %s %s\n", e.Tool, status, summary)
+	case agent.ThinkingEvent:
+		fmt.Printf("  ⏳ %s…\n", e.Note)
 	case agent.DraftEvent:
 		fmt.Println("\n  ✓ Analysis drafted")
 	case agent.VerifyEvent:

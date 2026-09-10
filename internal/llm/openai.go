@@ -8,15 +8,27 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
 
 type OpenAICompat struct {
-	BaseURL string
-	APIKey  string
-	Model   string
-	Client  *http.Client
+	BaseURL         string
+	APIKey          string
+	Model           string
+	Client          *http.Client
+	Effort          string
+}
+
+func (p *OpenAICompat) reasoningEffort() string {
+	if p.Effort != "" {
+		return p.Effort
+	}
+	if strings.Contains(strings.ToLower(p.Model), "glm") {
+		return "high"
+	}
+	return ""
 }
 
 func ConfigFromEnv() (Provider, error) {
@@ -35,15 +47,16 @@ func ConfigFromEnv() (Provider, error) {
 	if key == "" {
 		return nil, ErrNoAPIKey
 	}
-	return &OpenAICompat{BaseURL: base, APIKey: key, Model: model, Client: &http.Client{Timeout: 5 * time.Minute}}, nil
+	return &OpenAICompat{BaseURL: base, APIKey: key, Model: model, Client: &http.Client{Timeout: 5 * time.Minute}, Effort: os.Getenv("KERENSCOPE_LLM_REASONING")}, nil
 }
 
 type chatRequest struct {
-	Model       string    `json:"model"`
-	Messages    []Message `json:"messages"`
-	Tools       []ToolDef `json:"tools,omitempty"`
-	MaxTokens   int       `json:"max_tokens,omitempty"`
-	Temperature float64   `json:"temperature,omitempty"`
+	Model           string    `json:"model"`
+	Messages        []Message `json:"messages"`
+	Tools           []ToolDef `json:"tools,omitempty"`
+	MaxTokens       int       `json:"max_tokens,omitempty"`
+	Temperature     float64   `json:"temperature,omitempty"`
+	ReasoningEffort string    `json:"reasoning_effort,omitempty"`
 }
 
 type chatResponse struct {
@@ -62,16 +75,32 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
+func CallTimeout() time.Duration {
+	if v := os.Getenv("KERENSCOPE_LLM_CALL_TIMEOUT_SECS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return time.Duration(n) * time.Second
+		}
+	}
+	return 4 * time.Minute
+}
+
 func (p *OpenAICompat) Complete(ctx context.Context, req Request) (Response, error) {
+	callCtx, cancel := context.WithTimeout(ctx, CallTimeout())
+	defer cancel()
+	ctx = callCtx
 	if req.Model == "" {
 		req.Model = p.Model
 	}
+	if req.ReasoningEffort == "" {
+		req.ReasoningEffort = p.reasoningEffort()
+	}
 	body, err := json.Marshal(chatRequest{
-		Model:       req.Model,
-		Messages:    req.Messages,
-		Tools:       req.Tools,
-		MaxTokens:   req.MaxTokens,
-		Temperature: req.Temperature,
+		Model:           req.Model,
+		Messages:        req.Messages,
+		Tools:           req.Tools,
+		MaxTokens:       req.MaxTokens,
+		Temperature:     req.Temperature,
+		ReasoningEffort: req.ReasoningEffort,
 	})
 	if err != nil {
 		return Response{}, err

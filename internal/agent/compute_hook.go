@@ -49,7 +49,6 @@ func (s *computeState) registerFacts(prefix string, v any) {
 
 func (s *computeState) comparison() string {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	var ms []compute.CompanyMetrics
 	for _, c := range s.companies {
 		if c.Quarterly != nil || c.Valuation != nil {
@@ -57,16 +56,43 @@ func (s *computeState) comparison() string {
 		}
 	}
 	if len(ms) < 2 || len(ms) <= s.lastCompared {
+		s.mu.Unlock()
 		return ""
 	}
 	s.lastCompared = len(ms)
 	cmp := compute.CompareCompanies(ms)
-	s.registerFacts("comparison", cmp)
 	out, err := json.MarshalIndent(cmp, "", " ")
+	s.mu.Unlock()
+	s.registerFacts("comparison", cmp)
 	if err != nil {
 		return ""
 	}
 	return string(out)
+}
+
+func (s *computeState) setValuation(symbol, name string, vm compute.ValuationMetrics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	c := s.companyLocked(symbol)
+	c.Name = name
+	c.Valuation = &vm
+}
+
+func (s *computeState) setQuarterly(symbol string, qm compute.QuarterMetrics) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	c := s.companyLocked(symbol)
+	c.Quarterly = &qm
+}
+
+func (s *computeState) companyLocked(symbol string) *compute.CompanyMetrics {
+	symbol = strings.ToUpper(strings.TrimSpace(symbol))
+	if c, ok := s.companies[symbol]; ok {
+		return c
+	}
+	c := &compute.CompanyMetrics{Symbol: symbol}
+	s.companies[symbol] = c
+	return c
 }
 
 func symbolFromArgs(args map[string]any) string {
@@ -76,29 +102,42 @@ func symbolFromArgs(args map[string]any) string {
 	return "?"
 }
 
-func (a *Agent) postProcess(name string, args map[string]any, result tools.Result, state *computeState) string {
+func (a *Agent) postProcess(name string, args map[string]any, result tools.Result, state *computeState) (string, bool) {
 	if !result.OK {
-		return ""
+		return "", false
+	}
+	if raw, err := json.Marshal(result.Data); err == nil {
+		switch name {
+		case "price_history":
+			if series, err := compute.ParsePriceSeries(raw); err == nil {
+				digest := compute.DigestPrice(series)
+				state.registerFacts("computed:"+digest.Symbol+".price", digest)
+				return "[PRICE DIGEST — deterministic, computed by the KerenScope engine from the full daily series. Verified values: use verbatim]:\n" + mustJSONIndent(digest), true
+			}
+		case "foreign_flow":
+			if digest, err := compute.DigestFlow(raw); err == nil {
+				state.registerFacts("computed:"+digest.Symbol+".flow", digest)
+				return "[FOREIGN FLOW DIGEST — deterministic, computed by the KerenScope engine from the full daily series. Verified values: use verbatim]:\n" + mustJSONIndent(digest), true
+			}
+		}
 	}
 	var block strings.Builder
 	switch name {
 	case "company_report":
 		if report, ok := result.Data.(*sectors.CompanyReport); ok {
 			vm := compute.FromCompanyReport(report)
-			c := state.company(report.Symbol)
-			c.Name = report.CompanyName
-			c.Valuation = &vm
-			state.registerFacts("computed:"+c.Symbol+".valuation", vm)
+			state.setValuation(report.Symbol, report.CompanyName, vm)
+			state.registerFacts("computed:"+strings.ToUpper(strings.TrimSpace(report.Symbol))+".valuation", vm)
 			block.WriteString("\n\n[COMPUTED VALUATION METRICS — deterministic, computed by the KerenScope engine. These are verified values: use them verbatim in your analysis and never recompute arithmetic yourself]:\n")
 			block.WriteString(mustJSONIndent(vm))
 		}
 	case "quarterly_financials":
 		if raw, err := json.Marshal(result.Data); err == nil {
 			if quarters, err := compute.ParseQuarters(raw); err == nil && len(quarters) > 0 {
-				qm := compute.MetricsFromQuarters(symbolFromArgs(args), quarters)
-				c := state.company(symbolFromArgs(args))
-				c.Quarterly = &qm
-				state.registerFacts("computed:"+c.Symbol+".quarterly", qm)
+				symbol := symbolFromArgs(args)
+				qm := compute.MetricsFromQuarters(symbol, quarters)
+				state.setQuarterly(symbol, qm)
+				state.registerFacts("computed:"+symbol+".quarterly", qm)
 				block.WriteString("\n\n[COMPUTED QUARTERLY METRICS — deterministic, computed by the KerenScope engine. These are verified values: use them verbatim in your analysis and never recompute arithmetic yourself]:\n")
 				block.WriteString(mustJSONIndent(qm))
 			}
@@ -110,7 +149,7 @@ func (a *Agent) postProcess(name string, args map[string]any, result tools.Resul
 			block.WriteString(cmp)
 		}
 	}
-	return block.String()
+	return block.String(), false
 }
 
 func mustJSONIndent(v any) string {

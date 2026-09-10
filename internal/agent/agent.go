@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -76,6 +77,7 @@ type ToolDoneEvent struct {
 }
 type DraftEvent struct{ Draft string }
 type VerifyEvent struct{ Verification Verification }
+type ThinkingEvent struct{ Note string }
 
 type evidence struct {
 	Tool   string
@@ -131,7 +133,7 @@ func (a *Agent) Research(ctx context.Context, question string, emit func(Event),
 		emit(DraftEvent{Draft: draft})
 	}
 
-	verification, err := a.verify(ctx, question, draft, evidenceStore, state)
+	verification, err := a.verify(ctx, question, draft, evidenceStore, state, emit)
 	if err != nil {
 		verification.Limitations = append(verification.Limitations, "verification step failed: "+err.Error())
 	}
@@ -275,13 +277,30 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 	var used []string
 	var store []evidence
 	toolCallCount := 0
+	budgetRejections := 0
+	dbg := os.Getenv("KEREN_DEBUG") != ""
 	for turn := 0; turn < a.MaxActTurns; turn++ {
-		resp, err := a.LLM.Complete(ctx, llm.Request{
+		if emit != nil {
+			emit(ThinkingEvent{Note: "analyzing gathered data"})
+		}
+		dbgStart := time.Now()
+		attemptReq := llm.Request{
 			Messages: messages,
 			Tools:    llmTools(a.Tools),
 			MaxTokens: llm.MaxTokensHint(),
 			Temperature: a.Temperature,
-		})
+		}
+		resp, err := a.LLM.Complete(ctx, attemptReq)
+		if err != nil && ctx.Err() == nil {
+			attemptReq.ReasoningEffort = "low"
+			if emit != nil {
+				emit(ThinkingEvent{Note: "high-effort call failed, retrying at low reasoning effort"})
+			}
+			resp, err = a.LLM.Complete(ctx, attemptReq)
+		}
+		if os.Getenv("KEREN_DEBUG") != "" {
+			fmt.Fprintf(os.Stderr, "[dbg] executor turn %d: %s, tool_calls=%d, content=%d chars, tokens=%d\n", turn, time.Since(dbgStart).Round(time.Second), len(resp.ToolCalls), len(resp.Content), resp.Usage.CompletionTokens)
+		}
 		if err != nil {
 			return "", used, store, err
 		}
@@ -289,11 +308,21 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 			return resp.Content, used, store, nil
 		}
 		if toolCallCount+len(resp.ToolCalls) > a.MaxToolCalls {
-			messages = append(messages,
-				llm.Message{Role: "assistant", Content: resp.Content, ToolCalls: resp.ToolCalls},
-				llm.Message{Role: "tool", ToolCallID: resp.ToolCalls[0].ID, Name: resp.ToolCalls[0].Name,
-					Content: "Tool budget exceeded. Stop calling tools and write the final analysis draft now with the data you have."},
-			)
+			budgetRejections++
+			messages = append(messages, llm.Message{Role: "assistant", Content: resp.Content, ToolCalls: resp.ToolCalls})
+			for _, call := range resp.ToolCalls {
+				content := "Skipped: tool budget exceeded. Write the final analysis draft now with the data you already have."
+				if budgetRejections >= 2 {
+					content = "Skipped: tool budget exceeded. You MUST NOT request any more tools. Your next message must be the complete final analysis draft in Markdown."
+				}
+				messages = append(messages, llm.Message{Role: "tool", ToolCallID: call.ID, Name: call.Name, Content: content})
+			}
+			if budgetRejections >= 3 {
+				if strings.TrimSpace(resp.Content) != "" {
+					return resp.Content, used, store, nil
+				}
+				return "Analysis incomplete: the tool budget was exhausted before enough data could be gathered for a confident conclusion.", used, store, nil
+			}
 			continue
 		}
 		assistant := llm.Message{Role: "assistant", Content: resp.Content, ToolCalls: resp.ToolCalls}
@@ -319,11 +348,17 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 				defer wg.Done()
 				sem <- struct{}{}
 				defer func() { <-sem }()
+				dbgT0 := time.Now()
 				result := a.Tools.Run(ctx, call.Name, args)
+				if dbg {
+					fmt.Fprintf(os.Stderr, "[dbg] tool %s: %s\n", call.Name, time.Since(dbgT0).Round(time.Millisecond))
+				}
 				resultJSON, _ := json.Marshal(result)
 				resultStr := trimResult(string(resultJSON), a.MaxResultChars)
-				if extra := a.postProcess(call.Name, args, result, state); extra != "" {
-					resultStr += extra
+				if content, replaced := a.postProcess(call.Name, args, result, state); replaced {
+					resultStr = content
+				} else if content != "" {
+					resultStr += content
 				}
 				batch[i] = executed{call: call, args: args, result: result, resultStr: resultStr}
 				if emit != nil {
@@ -340,7 +375,7 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 	return "", used, store, fmt.Errorf("executor reached max turns (%d) without a final draft", a.MaxActTurns)
 }
 
-func (a *Agent) verify(ctx context.Context, question, draft string, store []evidence, state *computeState) (Verification, error) {
+func (a *Agent) verify(ctx context.Context, question, draft string, store []evidence, state *computeState, emit func(Event)) (Verification, error) {
 	raws := make([]string, len(store))
 	for i, ev := range store {
 		raws[i] = ev.Result
@@ -374,6 +409,9 @@ func (a *Agent) verify(ctx context.Context, question, draft string, store []evid
 		"Call the submit_verification tool exactly once with: the claims (claim text, supported true/false, specific evidence), " +
 		"an overall confidence score 0-100, and honest limitations (missing data, unverified assumptions, stale data). " +
 		"Be strict but concise: do not over-reason — verify directly."
+	if emit != nil {
+		emit(ThinkingEvent{Note: "verifying claims against evidence"})
+	}
 	resp, err := a.LLM.Complete(ctx, llm.Request{
 		Messages: []llm.Message{
 			{Role: "system", Content: system},
