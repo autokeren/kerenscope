@@ -24,8 +24,8 @@ var autoApprove bool
 var researchCmd = &cobra.Command{
 	Use:     "research <question>",
 	Aliases: []string{"r", "riset", "cari"},
-	Short: "Autonomously investigate a research question using Sectors data",
-	Args:  cobra.ExactArgs(1),
+	Short:   "Autonomously investigate a research question using Sectors data",
+	Args:  cobra.ArbitraryArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return runResearchQuestion(cmd.Context(), strings.TrimSpace(args[0]))
 	},

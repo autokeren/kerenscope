@@ -231,7 +231,7 @@ func (c *Client) TopMovers(ctx context.Context, opts MoversOptions) (json.RawMes
 }
 
 func (c *Client) IndexDaily(ctx context.Context, indexCode string, days int) (json.RawMessage, error) {
-	indexCode = strings.TrimSpace(indexCode)
+	indexCode = strings.ToLower(strings.TrimSpace(indexCode))
 	if indexCode == "" {
 		indexCode = "IHSG"
 	}

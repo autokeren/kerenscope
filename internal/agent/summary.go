@@ -61,8 +61,8 @@ func resultSummary(name string, args map[string]any, result tools.Result) string
 	case "sectors_api":
 		return argString(args, "path")
 	case "top_movers":
-		if n, ok := peekArrayLen(result.Data); ok {
-			return fmt.Sprintf("%d movers", n)
+		if m, ok := peekMovers(result.Data); ok {
+			return fmt.Sprintf("%d gainers · %d losers", m.gainers, m.losers)
 		}
 	}
 	s := mustJSON(result.Data)
@@ -221,6 +221,42 @@ func peekResults(data any) (resultsPeek, bool) {
 		if len(peek.first) > 48 {
 			peek.first = peek.first[:48] + "…"
 		}
+	}
+	return peek, true
+}
+
+type moversPeek struct {
+	gainers int
+	losers  int
+}
+
+func peekMovers(data any) (moversPeek, bool) {
+	raw, err := json.Marshal(data)
+	if err != nil {
+		return moversPeek{}, false
+	}
+	var payload struct {
+		TopGainers map[string][]struct {
+			Name string `json:"name"`
+		} `json:"top_gainers"`
+		TopLosers map[string][]struct {
+			Name string `json:"name"`
+		} `json:"top_losers"`
+	}
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return moversPeek{}, false
+	}
+	peek := moversPeek{}
+	for _, entries := range payload.TopGainers {
+		peek.gainers = len(entries)
+		break
+	}
+	for _, entries := range payload.TopLosers {
+		peek.losers = len(entries)
+		break
+	}
+	if peek.gainers == 0 && peek.losers == 0 {
+		return moversPeek{}, false
 	}
 	return peek, true
 }

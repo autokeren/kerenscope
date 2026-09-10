@@ -146,6 +146,7 @@ func (c *Client) fetch(ctx context.Context, target string) (json.RawMessage, err
 			apiErr.Detail = fmt.Sprintf("API key rejected (%d) — check SECTORS_API_KEY", resp.StatusCode)
 			return nil, apiErr
 		}
+		apiErr.Detail = extractAPIErrorMessage(string(body))
 		if resp.StatusCode == http.StatusNotFound {
 			apiErr.Detail = "endpoint or symbol not found"
 			return nil, apiErr
@@ -195,6 +196,26 @@ func sleepCtx(ctx context.Context, d time.Duration) error {
 	case <-timer.C:
 		return nil
 	}
+}
+
+func extractAPIErrorMessage(body string) string {
+	start := strings.Index(body, "{")
+	if start < 0 {
+		return strings.TrimSpace(body)
+	}
+	var parsed struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal([]byte(body[start:]), &parsed); err == nil {
+		if parsed.Message != "" {
+			return parsed.Message
+		}
+		if parsed.Error != "" {
+			return parsed.Error
+		}
+	}
+	return strings.TrimSpace(body)
 }
 
 type ErrorKind int
