@@ -14,11 +14,12 @@ import (
 )
 
 type OpenAICompat struct {
-	BaseURL         string
-	APIKey          string
-	Model           string
-	Client          *http.Client
-	Effort          string
+	BaseURL       string
+	APIKey        string
+	Model         string
+	FallbackModel string
+	Client        *http.Client
+	Effort        string
 }
 
 func (p *OpenAICompat) reasoningEffort() string {
@@ -47,7 +48,14 @@ func ConfigFromEnv() (Provider, error) {
 	if key == "" {
 		return nil, ErrNoAPIKey
 	}
-	return &OpenAICompat{BaseURL: base, APIKey: key, Model: model, Client: &http.Client{Timeout: 5 * time.Minute}, Effort: os.Getenv("KERENSCOPE_LLM_REASONING")}, nil
+	return &OpenAICompat{
+		BaseURL:       base,
+		APIKey:        key,
+		Model:         model,
+		FallbackModel: os.Getenv("KERENSCOPE_LLM_FALLBACK_MODEL"),
+		Client:        &http.Client{Timeout: 5 * time.Minute},
+		Effort:        os.Getenv("KERENSCOPE_LLM_REASONING"),
+	}, nil
 }
 
 type chatRequest struct {
@@ -85,6 +93,19 @@ func CallTimeout() time.Duration {
 }
 
 func (p *OpenAICompat) Complete(ctx context.Context, req Request) (Response, error) {
+	if req.Model == "" {
+		req.Model = p.Model
+	}
+	resp, err := p.completeOnce(ctx, req)
+	if err == nil || ctx.Err() != nil || p.FallbackModel == "" || p.FallbackModel == req.Model {
+		return resp, err
+	}
+	fallback := req
+	fallback.Model = p.FallbackModel
+	return p.completeOnce(ctx, fallback)
+}
+
+func (p *OpenAICompat) completeOnce(ctx context.Context, req Request) (Response, error) {
 	callCtx, cancel := context.WithTimeout(ctx, CallTimeout())
 	defer cancel()
 	ctx = callCtx

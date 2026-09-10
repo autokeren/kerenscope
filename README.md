@@ -120,6 +120,7 @@ KerenScope works with any OpenAI-compatible chat-completions provider:
 | `KERENSCOPE_LLM_API_KEY` | `OPENAI_API_KEY` fallback | LLM provider key |
 | `KERENSCOPE_LLM_MODEL` | `gpt-4o-mini` | model id |
 | `KERENSCOPE_LLM_REASONING` | auto (`high` for GLM) | reasoning effort hint |
+| `KERENSCOPE_LLM_FALLBACK_MODEL` | — | secondary model used automatically when the primary fails (e.g. `@cf/zai-org/glm-5.3-flash`) |
 | `KERENSCOPE_LLM_MAX_TOKENS` | `32768` | output token budget |
 | `KERENSCOPE_LLM_CALL_TIMEOUT_SECS` | `240` | per-call hard deadline (auto-retries at low effort once) |
 | `KEREN_DEBUG` | off | per-turn latency tracing |

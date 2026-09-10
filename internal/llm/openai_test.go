@@ -3,6 +3,7 @@ package llm
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -55,5 +56,56 @@ func TestToolCallsMarshalBackAsNestedWireFormat(t *testing.T) {
 	}
 	if !strings.Contains(got, `"id":"call_9"`) {
 		t.Fatalf("expected call id in wire format, got: %s", got)
+	}
+}
+
+func TestFallsBackToSecondaryModel(t *testing.T) {
+	var bodies []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]any
+		raw, _ := io.ReadAll(r.Body)
+		bodies = append(bodies, string(raw))
+		json.Unmarshal(raw, &body)
+		if body["model"] == "primary-model" {
+			w.WriteHeader(http.StatusRequestTimeout)
+			w.Write([]byte(`{"error":{"message":"request timeout"}}`))
+			return
+		}
+		w.Write([]byte(`{"choices":[{"message":{"content":"flash saved the day"}}]}`))
+	}))
+	defer srv.Close()
+	p := &OpenAICompat{BaseURL: srv.URL, APIKey: "k", Model: "primary-model", FallbackModel: "flash-model", Client: srv.Client()}
+	resp, err := p.Complete(context.Background(), Request{Messages: []Message{{Role: "user", Content: "hi"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.Content != "flash saved the day" {
+		t.Fatalf("expected fallback response, got %q", resp.Content)
+	}
+	if len(bodies) != 2 {
+		t.Fatalf("expected 2 attempts, got %d", len(bodies))
+	}
+	if !strings.Contains(bodies[0], `"primary-model"`) {
+		t.Fatal("first attempt must use the primary model")
+	}
+	if !strings.Contains(bodies[1], `"flash-model"`) {
+		t.Fatal("second attempt must switch to the fallback model")
+	}
+}
+
+func TestNoFallbackLoopWhenSameModel(t *testing.T) {
+	calls := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+	p := &OpenAICompat{BaseURL: srv.URL, APIKey: "k", Model: "m", FallbackModel: "m", Client: srv.Client()}
+	_, err := p.Complete(context.Background(), Request{Messages: []Message{{Role: "user", Content: "hi"}}})
+	if err == nil {
+		t.Fatal("expected error to propagate")
+	}
+	if calls != 1 {
+		t.Fatalf("must not retry when fallback equals primary model, got %d calls", calls)
 	}
 }

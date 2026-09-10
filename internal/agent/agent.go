@@ -61,6 +61,19 @@ type ApprovePlan func(plan Plan, attempt int) PlanApproval
 
 type Event interface{}
 
+func (a *Agent) completeWithFallback(ctx context.Context, emit func(Event), req llm.Request) (llm.Response, error) {
+	resp, err := a.LLM.Complete(ctx, req)
+	if err == nil || ctx.Err() != nil {
+		return resp, err
+	}
+	retry := req
+	retry.ReasoningEffort = "low"
+	if emit != nil {
+		emit(ThinkingEvent{Note: "call failed (" + truncate(err.Error(), 60) + ") — retrying at low reasoning effort"})
+	}
+	return a.LLM.Complete(ctx, retry)
+}
+
 type PlanEvent struct{ Plan Plan }
 type StepEvent struct {
 	Index int
@@ -183,13 +196,13 @@ func (a *Agent) makePlan(ctx context.Context, question string, feedback string) 
 	if feedback != "" {
 		system += "\n\n" + feedback
 	}
-	plan, err := a.callSubmitPlan(ctx, system, question)
+	plan, err := a.callSubmitPlan(ctx, system, question, nil)
 	if err != nil {
 		return Plan{}, err
 	}
 	if validated, ok, verr := a.validatePlan(plan); !ok {
 		retry := system + "\n\nYour previous plan was rejected: " + verr + ". Fix it and call submit_plan again."
-		plan, err = a.callSubmitPlan(ctx, retry, question)
+		plan, err = a.callSubmitPlan(ctx, retry, question, nil)
 		if err != nil {
 			return Plan{}, err
 		}
@@ -203,8 +216,8 @@ func (a *Agent) makePlan(ctx context.Context, question string, feedback string) 
 	}
 }
 
-func (a *Agent) callSubmitPlan(ctx context.Context, system, question string) (Plan, error) {
-	resp, err := a.LLM.Complete(ctx, llm.Request{
+func (a *Agent) callSubmitPlan(ctx context.Context, system, question string, emit func(Event)) (Plan, error) {
+	resp, err := a.completeWithFallback(ctx, emit, llm.Request{
 		Messages: []llm.Message{
 			{Role: "system", Content: system},
 			{Role: "user", Content: question},
@@ -284,20 +297,12 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 			emit(ThinkingEvent{Note: "analyzing gathered data"})
 		}
 		dbgStart := time.Now()
-		attemptReq := llm.Request{
+		resp, err := a.completeWithFallback(ctx, emit, llm.Request{
 			Messages: messages,
 			Tools:    llmTools(a.Tools),
 			MaxTokens: llm.MaxTokensHint(),
 			Temperature: a.Temperature,
-		}
-		resp, err := a.LLM.Complete(ctx, attemptReq)
-		if err != nil && ctx.Err() == nil {
-			attemptReq.ReasoningEffort = "low"
-			if emit != nil {
-				emit(ThinkingEvent{Note: "high-effort call failed, retrying at low reasoning effort"})
-			}
-			resp, err = a.LLM.Complete(ctx, attemptReq)
-		}
+		})
 		if os.Getenv("KEREN_DEBUG") != "" {
 			fmt.Fprintf(os.Stderr, "[dbg] executor turn %d: %s, tool_calls=%d, content=%d chars, tokens=%d\n", turn, time.Since(dbgStart).Round(time.Second), len(resp.ToolCalls), len(resp.Content), resp.Usage.CompletionTokens)
 		}
@@ -412,7 +417,7 @@ func (a *Agent) verify(ctx context.Context, question, draft string, store []evid
 	if emit != nil {
 		emit(ThinkingEvent{Note: "verifying claims against evidence"})
 	}
-	resp, err := a.LLM.Complete(ctx, llm.Request{
+	resp, err := a.completeWithFallback(ctx, emit, llm.Request{
 		Messages: []llm.Message{
 			{Role: "system", Content: system},
 			{Role: "user", Content: b.String()},
