@@ -33,3 +33,12 @@ func TestWrapIndentAlignment(t *testing.T) {
 		}
 	}
 }
+
+func TestTermWidthFallbackAndHelpers(t *testing.T) {
+	if w := termWidth(); w < 40 {
+		t.Fatalf("termWidth must never go below 40, got %d", w)
+	}
+	if c := contentWidth(); c != termWidth()-4 {
+		t.Fatalf("contentWidth must be termWidth-4, got %d", c)
+	}
+}

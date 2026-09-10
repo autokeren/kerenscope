@@ -53,7 +53,7 @@ func runResearchQuestion(ctx context.Context, question string) error {
 
 	fmt.Println(banner())
 	fmt.Println("  " + dim("Question"))
-	fmt.Println(wrapIndent(question, 64, "  "))
+	fmt.Println(wrapIndent(question, contentWidth(), "  "))
 	fmt.Println()
 	beginPhase("planning investigation")
 
@@ -85,7 +85,7 @@ func runResearchQuestion(ctx context.Context, question string) error {
 }
 
 func renderMarkdown(md string) string {
-	renderer, err := glamour.NewTermRenderer(glamour.WithWordWrap(78), glamour.WithAutoStyle())
+	renderer, err := glamour.NewTermRenderer(glamour.WithWordWrap(contentWidth()), glamour.WithAutoStyle())
 	if err != nil {
 		return md
 	}
@@ -168,20 +168,20 @@ func renderEvent(ev agent.Event) {
 	case agent.PlanEvent:
 		stopPhaseLocked()
 		fmt.Println(section("Research objective"))
-		fmt.Println(wrapIndent(e.Plan.Objective, 62, "    "))
+		fmt.Println(wrapIndent(e.Plan.Objective, contentWidth()-4, "    "))
 		fmt.Println(section(fmt.Sprintf("Plan · %d steps", len(e.Plan.Steps))))
 		for _, s := range e.Plan.Steps {
 			fmt.Printf("    %s %s%s\n",
 				dim(fmt.Sprintf("%2d.", s.ID)),
 				cyan(fmt.Sprintf("%-18s", s.Tool)),
-				wrapFirst(s.Intent, 40))
+				wrapFirst(s.Intent, contentWidth()-30))
 		}
 		fmt.Println("    " + dim(fmt.Sprintf("(planned in %s)", phaseElapsed())))
 	case agent.ToolDoneEvent:
 		stopPhaseLocked()
 		summary := e.Summary
-		if len(summary) > 74 {
-			summary = summary[:74] + "…"
+		if max := contentWidth() - 30; len(summary) > max && max > 30 {
+			summary = summary[:max] + "…"
 		}
 		fmt.Printf("    %s %s%s\n",
 			statusIcon(e.OK),
@@ -209,7 +209,7 @@ func renderEvent(ev agent.Event) {
 			statusIcon(true),
 			len(e.Verification.Numeric.Matched), len(e.Verification.Numeric.Unmatched))
 		for _, l := range e.Verification.Limitations {
-			fmt.Println(wrapIndent("⚠ "+l, 66, "    "))
+			fmt.Println(wrapIndent("⚠ "+l, contentWidth()-4, "    "))
 		}
 	}
 }

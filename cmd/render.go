@@ -22,6 +22,17 @@ const (
 
 var colorOn = os.Getenv("NO_COLOR") == "" && term.IsTerminal(int(os.Stdout.Fd()))
 
+func termWidth() int {
+	if w, _, err := term.GetSize(int(os.Stdout.Fd())); err == nil && w >= 40 {
+		return w
+	}
+	return 80
+}
+
+func contentWidth() int {
+	return termWidth() - 4
+}
+
 func stylize(code, s string) string {
 	if !colorOn {
 		return s
@@ -95,7 +106,10 @@ func banner() string {
 }
 
 func buildBanner(color bool) string {
-	const width = 54
+	width := termWidth() - 2
+	if width < 52 {
+		width = 52
+	}
 	rows := []string{
 		"  " + "KerenScope" + " — Autonomous Financial Research",
 		"  " + "Indonesian market intelligence · Powered by Sectors",
