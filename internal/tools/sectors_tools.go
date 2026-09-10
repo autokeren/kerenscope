@@ -73,7 +73,7 @@ type ScreenCompaniesTool struct{ Client *sectors.Client }
 func (t ScreenCompaniesTool) Definition() Definition {
 	return Definition{
 		Name: "screen_companies",
-		Description: "Screen/filter IDX-listed companies with a SQL-like `where` clause. ONLY documented field names are valid. Common fields — identification: symbol, company_name, sector, sub_sector, industry, listing_board, indices, tags; size/price: market_cap, market_cap_rank, last_close_price, all_time_high_price, ytd_high_price; valuation: pe, pe_ttm, forward_pe, pb, ps, pcf, peg, eps, eps_growth, dividend_yield_avg, intrinsic_value, pe_peer_avg, pb_peer_avg; profitability: roe, roe_ttm, roa, roa_ttm, gross_profit_margin, net_profit_margin, operating_profit_margin, cost_to_income_ratio; yearly financials (bracket notation): revenue[2024], earnings[2024], total_assets[2024], total_debt[2024], operating_cash_flow[2024]; growth: yoy_quarter_earnings_growth, yoy_quarter_revenue_growth, forecast_eps_growth, yearly_mcap_change; bank-specific: net_interest_margin, capital_adequacy_ratio, non_performing_loan, loan_to_deposit_ratio, casa_ratio, gross_loan, total_deposit; balance/liquidity: debt_to_equity_ratio, current_ratio, free_cash_flow. Operators: = != > >= < <= like in, combined with and/or; string values in single quotes. Examples: \"sector = 'Financials' and pe_ttm < 15\", \"roe[2024] > 0.15 and roe[2023] > 0.15\", \"indices in ['LQ45']\". `order_by` sorts (- prefix = descending), e.g. -market_cap or -(earnings[2024]/earnings[2023]). Alternatively pass a natural language `q` (LLM-translated server-side). Limit results (max 200, default 15).",
+		Description: "Screen/filter IDX-listed companies with a SQL-like `where` clause. ONLY documented field names are valid. Common fields — identification: symbol, company_name, sector, sub_sector, industry, listing_board, indices, tags; size/price: market_cap, market_cap_rank, last_close_price, all_time_high_price, ytd_high_price; valuation: pe, pe_ttm, forward_pe, pb, ps, pcf, peg, eps, eps_growth, dividend_yield_avg, intrinsic_value, pe_peer_avg, pb_peer_avg; profitability: roe, roe_ttm, roa, roa_ttm, gross_profit_margin, net_profit_margin, operating_profit_margin, cost_to_income_ratio; yearly financials (bracket notation): revenue[2024], earnings[2024], total_assets[2024], total_debt[2024], operating_cash_flow[2024]; growth: yoy_quarter_earnings_growth, yoy_quarter_revenue_growth, forecast_eps_growth, yearly_mcap_change; bank-specific: net_interest_margin, capital_adequacy_ratio, non_performing_loan, loan_to_deposit_ratio, casa_ratio, gross_loan, total_deposit; balance/liquidity: debt_to_equity_ratio, current_ratio, free_cash_flow. Financial-statement fields REQUIRE bracket notation with a year — e.g. revenue[2024], earnings[2024], debt_to_equity_ratio[2024], total_assets[2024], net_interest_margin[2024], forecast_eps_growth[2024], operating_cash_flow[2024] — while TTM/MRQ snapshot fields (pe_ttm, roe_ttm, der_mrq, last_close_price, market_cap) work plain. Operators: = != > >= < <= like in, combined with and/or; string values in single quotes. Examples: \"sector = 'Financials' and pe_ttm < 15\", \"roe[2024] > 0.15 and roe[2023] > 0.15\", \"indices in ['LQ45']\". `order_by` sorts (- prefix = descending), e.g. -market_cap or -(earnings[2024]/earnings[2023]). Alternatively pass a natural language `q` (LLM-translated server-side). Limit results (max 200, default 15).",
 		Parameters: object(map[string]any{
 			"where":    strProp("SQL-like filter conditions, e.g. \"sector = 'banks' and pe[2025] < 15\""),
 			"q":        strProp("Natural language query alternative, e.g. \"top 10 tech companies by revenue in 2024\""),
@@ -96,12 +96,24 @@ func (t ScreenCompaniesTool) Run(ctx context.Context, args map[string]any) Resul
 			return Result{OK: false, Error: err.Error()}
 		}
 	}
-	data, err := t.Client.ScreenCompanies(ctx, sectors.ScreenOptions{
-		Where:   where,
-		Q:       argString(args, "q"),
-		OrderBy: orderBy,
-		Limit:   argInt(args, "limit", 15),
-	})
+	q := argString(args, "q")
+	limit := argInt(args, "limit", 15)
+	data, err := t.Client.ScreenCompanies(ctx, sectors.ScreenOptions{Where: where, Q: q, OrderBy: orderBy, Limit: limit})
+	for attempt := 0; err != nil && attempt < 2; attempt++ {
+		repaired := false
+		if fixed, ok := AutoBracketFix(where, err.Error()); ok {
+			where = fixed
+			repaired = true
+		}
+		if fixed, ok := AutoBracketFix(orderBy, err.Error()); ok {
+			orderBy = fixed
+			repaired = true
+		}
+		if !repaired {
+			break
+		}
+		data, err = t.Client.ScreenCompanies(ctx, sectors.ScreenOptions{Where: where, Q: q, OrderBy: orderBy, Limit: limit})
+	}
 	if err != nil {
 		return Result{OK: false, Error: err.Error()}
 	}

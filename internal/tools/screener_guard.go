@@ -57,3 +57,24 @@ func ValidateScreenerOrderBy(field string) error {
 	}
 	return nil
 }
+
+var bracketFixRe = regexp.MustCompile(`Field '([a-z_]+)' requires bracket notation with a year\. Example: [a-z_]+\[(\d{4})\]`)
+
+func AutoBracketFix(clause string, apiError string) (string, bool) {
+	m := bracketFixRe.FindStringSubmatch(apiError)
+	if m == nil {
+		return clause, false
+	}
+	field, year := m[1], m[2]
+	fixed := tokenRe.ReplaceAllStringFunc(clause, func(tok string) string {
+		base := screenerFieldBase(tok)
+		if base == field && !strings.Contains(tok, "[") {
+			return field + "[" + year + "]"
+		}
+		return tok
+	})
+	if fixed == clause {
+		return clause, false
+	}
+	return fixed, true
+}

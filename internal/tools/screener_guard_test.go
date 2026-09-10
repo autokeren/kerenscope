@@ -1,6 +1,8 @@
 package tools
 
 import (
+	"context"
+	"net/http"
 	"strings"
 	"testing"
 )
@@ -43,5 +45,44 @@ func TestValidateScreenerOrderBy(t *testing.T) {
 	}
 	if err := ValidateScreenerOrderBy("price_earnings"); err == nil {
 		t.Fatal("expected unknown order_by field rejected")
+	}
+}
+
+func TestAutoBracketFix(t *testing.T) {
+	apiErr := `sectors: HTTP 400: Field 'debt_to_equity_ratio' requires bracket notation with a year. Example: debt_to_equity_ratio[2024]`
+	fixed, ok := AutoBracketFix("debt_to_equity_ratio < 1 and pe_ttm < 15", apiErr)
+	if !ok {
+		t.Fatal("expected repair")
+	}
+	if fixed != "debt_to_equity_ratio[2024] < 1 and pe_ttm < 15" {
+		t.Fatalf("unexpected repair result: %s", fixed)
+	}
+	_, ok = AutoBracketFix("pe_ttm < 15", apiErr)
+	if ok {
+		t.Fatal("no repair expected when the field is absent")
+	}
+}
+
+func TestScreenCompaniesToolSelfHealsBracketErrors(t *testing.T) {
+	calls := 0
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		calls++
+		where := r.URL.Query().Get("where")
+		if !strings.Contains(where, "[") {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"error":"INVALID_WHERE_CLAUSE","message":"Field 'forecast_eps_growth' requires bracket notation with a year. Example: forecast_eps_growth[2025]"}`))
+			return
+		}
+		w.Write([]byte(`{"results":[{"symbol":"BRIS.JK"}]}`))
+	})
+	tool := ScreenCompaniesTool{Client: client}
+	res := tool.Run(context.Background(), map[string]any{
+		"where": "forecast_eps_growth > 0.1 and pe_ttm < 15",
+	})
+	if !res.OK {
+		t.Fatalf("expected self-healed success, got: %s", res.Error)
+	}
+	if calls != 2 {
+		t.Fatalf("expected exactly 2 calls (1 rejection + 1 repaired), got %d", calls)
 	}
 }
