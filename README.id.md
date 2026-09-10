@@ -106,14 +106,19 @@ go install github.com/autokeren/kerenscope@latest
 linux (amd64/arm64), macOS (amd64/arm64), Windows (amd64/arm64). Satu file statis, tanpa runtime.
 Di macOS, hapus karantina sekali: `xattr -d com.apple.quarantine keren`.
 
-## Konfigurasi
+## Mulai cepat (30 detik)
 
 ```bash
 export SECTORS_API_KEY="..."     # buat di sectors.app/api → API Key Management
+keren company BBCA               # jalan hanya dengan satu key ini
+keren doctor                     # periksa seluruh setup
 ```
 
-KerenScope jalan dengan provider chat-completions OpenAI-compatible mana pun —
-lihat tabel lengkapnya di [README](README.md#setup).
+## Riset otonom butuh LLM juga
+
+`keren research` / `keren compare` memanggil model chat-completions.
+KerenScope jalan dengan provider OpenAI-compatible mana pun —
+lihat tabel lengkapnya di [README](README.md#autonomous-research-needs-an-llm-too).
 
 ## Penggunaan
 
@@ -123,6 +128,7 @@ keren research "pertanyaan"  # investigasi otonom multi-langkah
 keren compare BBCA BBRI BMRI
 keren company BBCA          # laporan perusahaan sekali jalan
 keren credits              # estimasi pemakaian kredit
+keren doctor                # periksa setup: key, endpoint, cache
 ```
 
 Saat riset berjalan, rencana yang diusulkan ditampilkan dulu dan — di terminal

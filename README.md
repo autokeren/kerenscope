@@ -115,13 +115,18 @@ go install github.com/autokeren/kerenscope@latest
 linux (amd64/arm64), macOS (amd64/arm64), Windows (amd64/arm64). No runtime needed;
 it is a single static binary. On macOS, clear the quarantine once: `xattr -d com.apple.quarantine keren`.
 
-## Setup
+## Quickstart (30 seconds)
 
 ```bash
 export SECTORS_API_KEY="..."     # create at sectors.app/api → API Key Management
+keren company BBCA               # works with just this one key
+keren doctor                     # verify the whole setup
 ```
 
-KerenScope works with any OpenAI-compatible chat-completions provider:
+## Autonomous research needs an LLM too
+
+`keren research` / `keren compare` call a chat-completions model.
+KerenScope works with any OpenAI-compatible provider:
 
 | Variable | Default | Meaning |
 |---|---|---|
@@ -143,6 +148,7 @@ keren research "question"   # autonomous multi-step investigation
 keren compare BBCA BBRI BMRI
 keren company BBCA          # one-shot company report
 keren credits               # local credit spend estimate
+keren doctor                # diagnose setup: keys, endpoints, cache
 ```
 
 During research, the proposed plan is shown first and — on an interactive
