@@ -3,7 +3,7 @@
 **Agen riset keuangan otonom untuk pasar saham Indonesia — didukung [Sectors](https://sectors.app).**
 
 [![CI](https://github.com/autokeren/kerenscope/actions/workflows/ci.yml/badge.svg)](https://github.com/autokeren/kerenscope/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/go-1.22-00ADD8)](https://go.dev)
+[![Go](https://img.shields.io/badge/go-1.26-00ADD8)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 KerenScope mengubah pertanyaan riset menjadi investigasi. Beri pertanyaan seperti

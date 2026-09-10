@@ -3,7 +3,7 @@
 **Autonomous financial research agent for the Indonesian stock market — powered by [Sectors](https://sectors.app).**
 
 [![CI](https://github.com/autokeren/kerenscope/actions/workflows/ci.yml/badge.svg)](https://github.com/autokeren/kerenscope/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/go-1.22-00ADD8)](https://go.dev)
+[![Go](https://img.shields.io/badge/go-1.26-00ADD8)](https://go.dev)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](LICENSE)
 
 KerenScope turns a research question into an investigation. Give it something like

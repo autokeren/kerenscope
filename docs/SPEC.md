@@ -86,12 +86,12 @@ Empat fase, semua custom-built:
 ### 3.2 ACT (executor)
 - Jalankan steps berurutan (atau parallel kalau independen — nice-to-have).
 - Tiap step: render `[2/5] Mengambil quarterly financials BBCA... ✓`.
-- **Dynamic re-planning**: kalau data gak ada (mis. segment revenue kosong), executor boleh minta LLM revisi sisa plan (bounded, max 2 re-plan).
+- **Dynamic re-planning**: kalau data tidak tersedia (mis. segment revenue kosong), executor boleh minta LLM revisi sisa plan (bounded, max 2 re-plan).
 - Tool hasil → masuk evidence store (bukan dump mentah ke context — di-ringkas per tool supaya context hemat).
 
 ### 3.3 VERIFY (differentiator)
 - LLM diberi laporan draft + data mentah pendukung → tugasnya **cross-check tiap klaim** di draft terhadap angka di evidence.
-- Klaim yang gak punya bukti → di-flag "⚠ unverified" atau dibuang.
+- Klaim yang tidak punya bukti → di-flag "⚠ unverified" atau dibuang.
 - Output: skor confidence + daftar keterbatasan data. Ini yang bikin produk keliatan engineered, bukan prompt sederhana.
 
 ### 3.4 SYNTHESIZE
@@ -135,9 +135,9 @@ Prinsip: tool **tipis & typed** (args JSON schema), semua intelligence ada di or
 - Auth: `SECTORS_API_KEY` (header `Authorization`), base `https://api.sectors.app/v2`.
 - **Disk cache WAJIB dari hari 1** (credits cuma 1.000):
   - `~/.cache/kerenscope/` (atau `XDG_CACHE_HOME`), key = hash(endpoint + params).
-  - TTL per jenis data: company report 24 jam · quarterly 24 jam · news 1 jam · price/foreign flow: EOD (harga demo gak berubah).
+  - TTL per jenis data: company report 24 jam · quarterly 24 jam · news 1 jam · price/foreign flow: EOD (harga demo tidak berubah).
   - `--no-cache` flag khusus debugging.
-- **Credit ledger**: append-only log tiap request (`~/.local/state/kerenscope/credits.log`) → perintah `keren credits` nunjukin sisa estimasi. (Verifikasi di portal: 1 request = 1 credit? Tanyakan di Slack #discussion kalau gak jelas.)
+- **Credit ledger**: append-only log tiap request (`~/.local/state/kerenscope/credits.log`) → perintah `keren credits` nunjukin sisa estimasi. (Verifikasi di portal: 1 request = 1 credit? Tanyakan di Slack #discussion jika tidak jelas.)
 - Rate limit: respect 429 dengan exponential backoff; concurrency tool = 2 (jangan banjir).
 
 ## 6. LLM Layer

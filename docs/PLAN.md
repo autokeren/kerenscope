@@ -65,7 +65,7 @@ Bukan bagian dari 1.000 credits Sectors — pakai provider sendiri:
 |---|---|
 | Onboarding/credit terlambat (reg tutup 22 Sep!) | Daftar HARI INI. Ini satu-satunya blocker keras. |
 | Kehabisan credits pas recording video | Cache warm + dry-run dulu, record terakhir |
-| Data bank gak lengkap (mis. segment kosong) | Tool wajib graceful ("data tidak tersedia"), executor re-plan |
+| Data bank yang tidak lengkap (mis. segment kosong) | Tool wajib graceful ("data tidak tersedia"), executor re-plan |
 | LLM bikin klaim halusinasi | Fase VERIFY wajib jalan; klaim tanpa bukti di-flag |
 | Terlalu banyak fitur = semua setengah jadi | Non-goals di SPEC §10. 1 killer workflow jalan > 5 fitur mati |
 | Video asal-asalan (30% skor!) | Storyboard DEMO.md, tulis script, dry-run 2x sebelum record |
