@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -93,5 +94,28 @@ func TestClientRetriesOn429(t *testing.T) {
 	}
 	if calls != 2 {
 		t.Fatalf("expected 2 calls after one 429, got %d", calls)
+	}
+}
+
+func TestClientCleanErrorMessageOn400(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(`{"error":"INVALID_WHERE_CLAUSE","message":"Field 'debt_to_equity_ratio' is not available in yearly form"}`))
+	}))
+	defer srv.Close()
+	c, err := New(Options{APIKey: "k", BaseURL: srv.URL, HomeDir: t.TempDir(), NoCache: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out map[string]any
+	err = c.GetJSON(context.Background(), "/v2/companies/", nil, time.Hour, &out)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if strings.Contains(err.Error(), `{"error"`) {
+		t.Fatalf("expected cleaned error, got: %s", err.Error())
+	}
+	if !strings.Contains(err.Error(), "debt_to_equity_ratio") {
+		t.Fatalf("expected underlying field message preserved, got: %s", err.Error())
 	}
 }

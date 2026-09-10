@@ -48,6 +48,7 @@ func Execute() {
 
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&noCache, "no-cache", false, "bypass the disk cache (debugging; spends credits)")
+	rootCmd.PersistentFlags().BoolVar(&revealSlow, "reveal-slow", false, "dramatic line-by-line reveal of the final report (for recording)")
 	rootCmd.PersistentFlags().BoolVar(&asJSON, "json", false, "print raw JSON instead of a rendered view")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }

@@ -153,11 +153,10 @@ func (c *Client) fetch(ctx context.Context, target string) (json.RawMessage, err
 		}
 		if resp.StatusCode == http.StatusTooManyRequests || resp.StatusCode >= 500 {
 			apiErr.RetryAfter = parseRetryAfter(resp.Header.Get("Retry-After"))
-			apiErr.Detail = strings.TrimSpace(string(body))
+			apiErr.Detail = extractAPIErrorMessage(string(body))
 			lastErr = apiErr
 			continue
 		}
-		apiErr.Detail = strings.TrimSpace(string(body))
 		return nil, apiErr
 	}
 	return nil, lastErr

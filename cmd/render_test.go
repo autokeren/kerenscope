@@ -3,6 +3,7 @@ package cmd
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestBannerRowsHaveEqualDisplayWidth(t *testing.T) {
@@ -40,5 +41,13 @@ func TestTermWidthFallbackAndHelpers(t *testing.T) {
 	}
 	if c := contentWidth(); c != termWidth()-4 {
 		t.Fatalf("contentWidth must be termWidth-4, got %d", c)
+	}
+}
+
+func TestRevealPrintInstantOnNonTTY(t *testing.T) {
+	start := time.Now()
+	revealPrint("line1\nline2\nline3", true)
+	if elapsed := time.Since(start); elapsed > 500*time.Millisecond {
+		t.Fatalf("revealPrint must be instant on non-TTY, took %v", elapsed)
 	}
 }

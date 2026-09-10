@@ -19,7 +19,10 @@ import (
 	"golang.org/x/term"
 )
 
-var autoApprove bool
+var (
+	autoApprove bool
+	revealSlow  bool
+)
 
 var researchCmd = &cobra.Command{
 	Use:     "research <question>",
@@ -64,7 +67,7 @@ func runResearchQuestion(ctx context.Context, question string) error {
 	}
 
 	fmt.Println()
-	fmt.Println(renderMarkdown(report.Render()))
+	revealPrint(renderMarkdown(report.Render()), revealSlow)
 
 	outDir := "reports"
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
@@ -224,4 +227,20 @@ func wrapFirst(s string, width int) string {
 		}
 	}
 	return strings.Join(lines, "\n")
+}
+
+func revealPrint(s string, slow bool) {
+	s = strings.TrimRight(s, "\n")
+	if !colorOn {
+		fmt.Println(s)
+		return
+	}
+	delay := 25 * time.Millisecond
+	if slow {
+		delay = 60 * time.Millisecond
+	}
+	for _, line := range strings.Split(s, "\n") {
+		fmt.Println(line)
+		time.Sleep(delay)
+	}
 }
