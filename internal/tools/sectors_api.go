@@ -50,29 +50,58 @@ func (t SectorsAPITool) Run(ctx context.Context, args map[string]any) Result {
 	if !pathRe.MatchString(path) {
 		return Result{OK: false, Error: "path contains invalid characters"}
 	}
-	params := url.Values{}
+	rawParams := map[string]string{}
 	if raw, ok := args["params"].(map[string]any); ok {
 		for k, v := range raw {
-			switch t := v.(type) {
+			switch tv := v.(type) {
 			case string:
-				params.Set(k, t)
+				rawParams[k] = tv
 			case float64:
-				params.Set(k, strconv.FormatFloat(t, 'f', -1, 64))
+				rawParams[k] = strconv.FormatFloat(tv, 'f', -1, 64)
 			case bool:
-				params.Set(k, strconv.FormatBool(t))
+				rawParams[k] = strconv.FormatBool(tv)
 			default:
 				data, err := json.Marshal(v)
 				if err == nil {
-					params.Set(k, string(data))
+					rawParams[k] = string(data)
 				}
 			}
 		}
 	}
-	var out json.RawMessage
-	if err := t.Client.GetJSON(ctx, path, params, ttlForPath(path), &out); err != nil {
+	validated, err := validateSectorsAPIParams(path, rawParams)
+	if err != nil {
 		return Result{OK: false, Error: err.Error()}
 	}
+	params := url.Values{}
+	for k, v := range validated {
+		params.Set(k, v)
+	}
+	var out json.RawMessage
+	if err := t.Client.GetJSON(ctx, path, params, ttlForPath(path), &out); err != nil {
+		return Result{OK: false, Error: cleanAPIError(err)}
+	}
 	return Result{OK: true, Data: out}
+}
+
+func cleanAPIError(err error) string {
+	msg := err.Error()
+	start := strings.Index(msg, "{")
+	if start < 0 {
+		return msg
+	}
+	var parsed struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	if jsonErr := json.Unmarshal([]byte(msg[start:]), &parsed); jsonErr == nil {
+		if parsed.Message != "" {
+			return msg[:start] + parsed.Message
+		}
+		if parsed.Error != "" {
+			return msg[:start] + parsed.Error
+		}
+	}
+	return msg
 }
 
 func ttlForPath(path string) time.Duration {
