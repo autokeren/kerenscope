@@ -319,5 +319,6 @@ func DefaultRegistry(client *sectors.Client) *Registry {
 		Register(InsiderFilingsTool{Client: client}).
 		Register(NewsTool{Client: client}).
 		Register(TopMoversTool{Client: client}).
-		Register(IndexDailyTool{Client: client})
+		Register(IndexDailyTool{Client: client}).
+		Register(SectorsAPITool{Client: client})
 }

@@ -68,6 +68,12 @@ func runResearchQuestion(ctx context.Context, question string) error {
 		return err
 	}
 	fmt.Printf("Report saved to %s\n", path)
+	htmlPath := filepath.Join(outDir, report.Slug()+".html")
+	if htmlBody, err := report.RenderHTML(); err == nil {
+		if err := os.WriteFile(htmlPath, htmlBody, 0o644); err == nil {
+			fmt.Printf("HTML report saved to %s\n", htmlPath)
+		}
+	}
 	return nil
 }
 
