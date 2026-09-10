@@ -1,0 +1,38 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - name: Build all platforms
+        run: |
+          mkdir -p dist
+          for target in linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64; do
+            GOOS="${target%/*}"
+            GOARCH="${target#*/}"
+            ext=""
+            if [ "$GOOS" = "windows" ]; then ext=".exe"; fi
+            CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" \
+              go build -trimpath -ldflags "-s -w" -o "dist/kerenscope-${GOOS}-${GOARCH}${ext}" .
+            if [ "$GOOS" = "windows" ]; then
+              (cd dist && zip -q "kerenscope-${GOOS}-${GOARCH}.zip" "kerenscope-${GOOS}-${GOARCH}${ext}" && rm "kerenscope-${GOOS}-${GOARCH}${ext}")
+            else
+              (cd dist && tar czf "kerenscope-${GOOS}-${GOARCH}.tar.gz" "kerenscope-${GOOS}-${GOARCH}${ext}" && rm "kerenscope-${GOOS}-${GOARCH}${ext}")
+            fi
+          done
+          ls -la dist/
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
+          generate_release_notes: true
