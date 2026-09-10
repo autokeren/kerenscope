@@ -151,9 +151,30 @@ Flags: `--json` (raw output), `--no-cache` (debugging; spends credits).
 
 ## Roadmap
 
-Interactive REPL, watchlists & recurring research, agent memory across
-sessions, SGX/KLSE coverage, and a desktop/web front-end (the CLI is the
-engine; the report is the product).
+The CLI is the engine; the report is the product. Where it goes next:
+
+**From one-shot research to a daily analyst**
+- *Watchlists & monitoring* — `keren watch BBCA` re-researches on a schedule and
+  reports only **what changed**: foreign flow reversing, insiders selling,
+  valuation leaving its historical band.
+- *Memory across sessions* — new research carries prior findings forward
+  ("yesterday you flagged risk X — is it still valid?").
+- *Interactive REPL* — follow-up questions without restarting the investigation.
+
+**Depth**
+- *Streaming draft* — the analysis types out live.
+- *Multi-agent research* — parallel per-sector sub-investigations, synthesized.
+- *Scheduled digest* — a morning report for your watchlist via email/Telegram.
+- *Broader data* — SGX/KLSE, the mining extension, corporate actions & buybacks.
+
+**Interfacing**
+- *Tauri desktop & web front-end* — thin shells over the same engine.
+- *Report share links* — publish an HTML report to a URL, no files attached.
+
+**Long-term rigor**
+- *Verification level 3* — backtest historical claims against what actually
+  happened; the agent keeps an honest track record.
+- *Plugin tools* — bring your own endpoints and computations.
 
 ## Disclaimer
 

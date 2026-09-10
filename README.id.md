@@ -128,8 +128,30 @@ interaktif — kamu memilih **approve / regenerate / quit** sebelum eksekusi.
 
 ## Roadmap
 
-REPL interaktif, watchlist & riset berulang, memori antar sesi, cakupan
-SGX/KLSE, dan front-end desktop/web (CLI-nya engine; laporannya produk).
+CLI-nya adalah engine; laporannya produk. Arah selanjutnya:
+
+**Dari riset sekali-jalan menjadi analis harian**
+- *Watchlist & monitoring* — `keren watch BBCA` men-riset ulang sesuai jadwal
+  dan hanya melaporkan **apa yang berubah**: foreign flow berbalik arah,
+  insider mulai menjual, valuasi keluar dari band historisnya.
+- *Memori antar sesi* — riset baru membawa temuan sebelumnya ("kemarin kamu
+  menandai risiko X — masih valid?").
+- *REPL interaktif* — pertanyaan lanjutan tanpa memulai ulang investigasi.
+
+**Kedalaman**
+- *Draft streaming* — analisis muncul live saat disusun.
+- *Riset multi-agent* — sub-investigasi paralel per sektor, lalu disintesis.
+- *Digest terjadwal* — laporan pagi untuk watchlist-mu via email/Telegram.
+- *Data lebih luas* — SGX/KLSE, mining extension, corporate actions & buyback.
+
+**Interfacing**
+- *Front-end desktop (Tauri) & web* — shell tipis di atas engine yang sama.
+- *Share link laporan* — publikasikan laporan HTML ke URL, tanpa lampiran.
+
+**Ketelitian jangka panjang**
+- *Verifikasi level 3* — backtest klaim historis terhadap realisasi;
+  agent-nya menjaga track record yang jujur.
+- *Plugin tools* — bawa endpoint dan kalkulasi milikmu sendiri.
 
 ## Disclaimer
 
