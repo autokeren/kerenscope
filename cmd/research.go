@@ -22,7 +22,8 @@ import (
 var autoApprove bool
 
 var researchCmd = &cobra.Command{
-	Use:   "research <question>",
+	Use:     "research <question>",
+	Aliases: []string{"r", "riset", "cari"},
 	Short: "Autonomously investigate a research question using Sectors data",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

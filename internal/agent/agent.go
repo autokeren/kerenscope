@@ -189,7 +189,7 @@ func (a *Agent) makePlan(ctx context.Context, question string, feedback string) 
 		time.Now().UTC().Format("2006-01-02") + ".\n\n" +
 		"Given the user's research question, produce a focused research plan of 2-8 steps. " +
 		"Each step must use exactly one of the available tools listed below, with concrete arguments. " +
-		"Prefer the cheapest sufficient tool per step; use screen_companies for open-ended universe questions, " +
+		"Prefer the cheapest sufficient tool per step; use screen_companies for open-ended universe questions ('which stocks are worth looking at') with concrete where/order_by filters, then deep-dive only the top 2-4 candidates with company_report, price_history and foreign_flow. " +
 		"company_report for a specific ticker, subsector_report for peer context, and price_history/foreign_flow/broker_summary/insider_filings/news for signal checks. " +
 		"Do not include writing or analysis steps — only data-gathering steps. Call the submit_plan tool exactly once.\n\n" +
 		"Available tools:\n" + a.toolCatalog()
@@ -280,6 +280,7 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 		"- When all the data you need is gathered, STOP calling tools and write your final analysis draft in Markdown.\n" +
 		"- The draft must: answer the research question directly, cite concrete numbers from the data you saw (state them explicitly), and note data limitations honestly. Write in the same language as the question.\n" +
 		"- Tool results may end with [COMPUTED ... METRICS] or [COMPARISON] blocks. Those are deterministic values computed by the KerenScope engine: cite them verbatim and never do arithmetic yourself.\n" +
+		"- If the user asks for buy/sell advice (e.g. 'layak dibeli', 'saham apa yang bagus', 'should I buy'), do NOT refuse and do NOT recommend. Reframe: run a transparent criteria-based screen (fundamentals, valuation vs peers, smart-money signals), present the top candidates with evidence, strengths AND risks per candidate, and state that this is analysis, not a buy recommendation.\n" +
 		"- You are an information and analysis tool. Never give investment advice or buy/sell recommendations.\n\n" +
 		"Available tools:\n" + a.toolCatalog()
 
