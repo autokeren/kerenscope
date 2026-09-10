@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/autokeren/kerenscope/internal/sectors"
 	"github.com/spf13/cobra"
@@ -24,10 +25,11 @@ evidence, and writing an evidence-backed report.
 
 Information and analysis only — not investment advice.`,
 	Version: "0.1.0",
-	Args:  cobra.MaximumNArgs(1),
+	Args:  cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args) == 1 {
-			if err := runResearchQuestion(cmd.Context(), args[0]); err != nil {
+		if len(args) > 0 {
+			question := strings.Join(args, " ")
+			if err := runResearchQuestion(cmd.Context(), question); err != nil {
 				fmt.Fprintln(os.Stderr, "Error:", err)
 				os.Exit(1)
 			}
