@@ -87,13 +87,24 @@ dicatat di ledger kredit lokal — jalankan `keren credits` untuk melihat pemaka
 
 ## Instalasi
 
+**Satu baris (Linux / macOS):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/autokeren/kerenscope/main/install.sh | bash
+```
+
+**Satu baris (Windows PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/autokeren/kerenscope/main/install.ps1 | iex
+```
+
 **Dari source (butuh Go):**
 ```bash
 go install github.com/autokeren/kerenscope@latest
 ```
 
-**Binary siap pakai:** ambil di [Releases](https://github.com/autokeren/kerenscope/releases) —
-linux (amd64/arm64), macOS (amd64/arm64), Windows (amd64/arm64). Satu file, tanpa runtime.
+**Binary manual:** ambil di [Releases](https://github.com/autokeren/kerenscope/releases) —
+linux (amd64/arm64), macOS (amd64/arm64), Windows (amd64/arm64). Satu file statis, tanpa runtime.
+Di macOS, hapus karantina sekali: `xattr -d com.apple.quarantine keren`.
 
 ## Konfigurasi
 

@@ -96,14 +96,24 @@ local credit ledger — run `keren credits` to see the spend.
 
 ## Install
 
+**One-liner (Linux / macOS):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/autokeren/kerenscope/main/install.sh | bash
+```
+
+**One-liner (Windows PowerShell):**
+```powershell
+irm https://raw.githubusercontent.com/autokeren/kerenscope/main/install.ps1 | iex
+```
+
 **From source (any platform with Go):**
 ```bash
 go install github.com/autokeren/kerenscope@latest
 ```
 
-**Prebuilt binaries:** grab one from [Releases](https://github.com/autokeren/kerenscope/releases) —
+**Manual binaries:** grab one from [Releases](https://github.com/autokeren/kerenscope/releases) —
 linux (amd64/arm64), macOS (amd64/arm64), Windows (amd64/arm64). No runtime needed;
-it is a single static binary.
+it is a single static binary. On macOS, clear the quarantine once: `xattr -d com.apple.quarantine keren`.
 
 ## Setup
 
