@@ -10,8 +10,13 @@ Durasi: judging ≤ 3 menit, teaser ≤ 60 detik.
 - `unset KEREN_DEBUG` — jangan ada output `[dbg]`
 - **Warm cache dulu**: jalankan sekali full sebelum rekam biar 0 surprise:
   `keren compare BBCA BBRI BMRI` → lalu hapus `reports/` biar rekamannya "fresh"
-- Durasi real: ±2,5 menit — pas untuk 3 menit. Kalau perlu lebih singkat:
-  `keren compare BBCA TLKM` (±90 detik)
+- Durasi real: ±2 menit (config flash + effort low) — pas untuk 3 menit.
+  Kalau perlu lebih singkat: `keren compare BBCA TLKM` (±90 detik)
+- Rekam TANPA `--yes` — momen approve plan itu bagus buat video (human-in-the-loop).
+  Tambah `--reveal-slow` kalau mau report muncul lebih dramatis di akhir
+- Kalau muncul ✗ 400 di layar pas nerekam: JANGAN retake — narasi aja:
+  "perhatikan, parameter salah ditolak dan diperbaiki otomatis sebelum
+  menghabiskan kredit" — itu fitur self-healing, bukan bug
 - Matikan notifikasi OS
 
 ---
@@ -43,15 +48,22 @@ Durasi: judging ≤ 3 menit, teaser ≤ 60 detik.
 > dan setiap hasil lewat compute engine: ROE, CASA, NIM, semua dihitung
 > oleh program, bukan oleh model. LLM-nya tidak pernah berhitung."
 >
-> *(saat ⏳ analyzing)* "Setelah data lengkap, agent menyusun draft analisis."
+> *(saat spinner "analyzing gathered data" berjalan)* "Setelah data lengkap,
+> agent menyusun draft analisis — spinner-nya hidup, ini proses nyata,
+> bukan video editing."
 >
 > *(saat verification muncul — TEKANKAN INI)* "Ini bagian favorit saya.
-> Verifikasi dua lapis: dulu--del--delapan puluh lima angka di draft
-> dicocokkan mekanis ke bukti -- deterministik, bukan opini LLM.
-> Sisanya diadjudikasi, dan hasilnya jujur: berapa klaim didukung bukti,
-> confidence berapa, keterbatasannya apa."
+> Verifikasi dua lapis: setiap angka di draft dicocokkan mekanis ke
+> bukti — deterministik, bukan opini LLM. Sisanya diadjudikasi, dan
+> hasilnya jujur: berapa klaim didukung bukti, confidence berapa,
+> keterbatasannya apa."
 
-*(sesuaikan angka dengan run rekamanmu: "85 angka ter-match, 13 dari 15 klaim didukung, confidence 78")*
+*(sesuaikan angka dengan run rekamanmu — contoh dari run nyata: "108 angka ter-match, 14 dari 14 klaim didukung, confidence 93")*
+
+**MOMEN EMAS (kalau kejadian di run lu):** kalau verifier menandai kontradiksi
+di draft-nya sendiri ("skor komposit tidak cocok dengan bukti engine"), jelaskan:
+"Perhatikan — agent-nya berani melawan draft-nya sendiri. Ini bukan chatbot
+yang asal jawab." Itu momen paling kuat buat kriteria technical depth.
 
 ### [2:20–2:40] Output — tampilan: buka file HTML report di browser
 > "Hasilnya: laporan lengkap — Markdown untuk terminal, HTML untuk siapa pun.
