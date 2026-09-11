@@ -24,7 +24,7 @@ investigates on its own: planning, querying Sectors data, cross-checking
 evidence, and writing an evidence-backed report.
 
 Information and analysis only — not investment advice.`,
-	Version: "0.2.0",
+	Version: "0.3.1",
 	Args:  cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 {
