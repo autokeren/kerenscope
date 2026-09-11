@@ -12,8 +12,10 @@ import (
 var version = "0.4.2-dev"
 
 var (
-	noCache bool
-	asJSON  bool
+	noCache   bool
+	asJSON    bool
+	revealSlow bool
+	noBrowser bool
 )
 
 var rootCmd = &cobra.Command{
@@ -51,6 +53,7 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().BoolVar(&noCache, "no-cache", false, "bypass the disk cache (debugging; spends credits)")
 	rootCmd.PersistentFlags().BoolVar(&revealSlow, "reveal-slow", false, "dramatic line-by-line reveal of the final report (for recording)")
+	rootCmd.PersistentFlags().BoolVar(&noBrowser, "no-browser", false, "do not open the HTML report in a browser automatically")
 	rootCmd.PersistentFlags().BoolVar(&asJSON, "json", false, "print raw JSON instead of a rendered view")
 	rootCmd.CompletionOptions.DisableDefaultCmd = true
 }

@@ -22,7 +22,6 @@ import (
 
 var (
 	autoApprove bool
-	revealSlow  bool
 )
 
 var researchCmd = &cobra.Command{
@@ -89,6 +88,11 @@ func runResearchQuestion(ctx context.Context, question string) error {
 	if htmlBody, err := report.RenderHTML(); err == nil {
 		if err := os.WriteFile(htmlPath, htmlBody, 0o644); err == nil {
 			fmt.Printf("  %s %s\n", statusIcon(true), "HTML report saved to "+htmlPath)
+			if !noBrowser && term.IsTerminal(int(os.Stdout.Fd())) {
+				if err := openBrowser(htmlPath); err == nil {
+					fmt.Printf("  %s %s\n", statusIcon(true), "Opening in your browser…")
+				}
+			}
 		}
 	}
 	return nil
