@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/autokeren/kerenscope/internal/config"
 	"github.com/autokeren/kerenscope/internal/llm"
 	"github.com/autokeren/kerenscope/internal/sectors"
 	"github.com/spf13/cobra"
@@ -49,6 +50,11 @@ func init() {
 }
 
 func checkSectors(cmd *cobra.Command) bool {
+	if os.Getenv("SECTORS_API_KEY") == "" {
+		if v, ok := config.Get("SECTORS_API_KEY"); ok {
+			os.Setenv("SECTORS_API_KEY", v)
+		}
+	}
 	if os.Getenv("SECTORS_API_KEY") == "" {
 		fmt.Printf("    %s SECTORS_API_KEY not set\n", red("✗"))
 		fmt.Printf("      %s create one at sectors.app/api (API Key Management), then:\n", dim("→"))
