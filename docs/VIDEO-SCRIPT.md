@@ -1,5 +1,8 @@
 # KerenScope — Script Video (siap baca)
 
+> Teks narasi TTS-ready ada di [docs/VOICE-OVER-TTS.md](VOICE-OVER-TTS.md)
+> — per seksi, tinggal tempel ke ElevenLabs/Azure/OpenAI TTS.
+
 Peraturan lomba: video boleh Bahasa Indonesia ATAU English. Script ini Bahasa
 Indonesia (paling natural buat presenter, juri = tim Sectors/Supertype).
 Durasi: judging ≤ 3 menit, teaser ≤ 60 detik.
