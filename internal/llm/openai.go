@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
+	"github.com/autokeren/kerenscope/internal/config"
 	"io"
 	"net/http"
 	"os"
@@ -32,16 +34,26 @@ func (p *OpenAICompat) reasoningEffort() string {
 	return ""
 }
 
+func envOrConfig(name string) string {
+	if v := os.Getenv(name); v != "" {
+		return v
+	}
+	if v, ok := config.Get(name); ok {
+		return v
+	}
+	return ""
+}
+
 func ConfigFromEnv() (Provider, error) {
-	base := strings.TrimRight(os.Getenv("KERENSCOPE_LLM_BASE_URL"), "/")
+	base := strings.TrimRight(envOrConfig("KERENSCOPE_LLM_BASE_URL"), "/")
 	if base == "" {
 		base = "https://api.openai.com/v1"
 	}
-	key := os.Getenv("KERENSCOPE_LLM_API_KEY")
+	key := envOrConfig("KERENSCOPE_LLM_API_KEY")
 	if key == "" {
 		key = os.Getenv("OPENAI_API_KEY")
 	}
-	model := os.Getenv("KERENSCOPE_LLM_MODEL")
+	model := envOrConfig("KERENSCOPE_LLM_MODEL")
 	if model == "" {
 		model = "gpt-4o-mini"
 	}
@@ -52,9 +64,9 @@ func ConfigFromEnv() (Provider, error) {
 		BaseURL:       base,
 		APIKey:        key,
 		Model:         model,
-		FallbackModel: os.Getenv("KERENSCOPE_LLM_FALLBACK_MODEL"),
+		FallbackModel: envOrConfig("KERENSCOPE_LLM_FALLBACK_MODEL"),
 		Client:        &http.Client{Timeout: 5 * time.Minute},
-		Effort:        os.Getenv("KERENSCOPE_LLM_REASONING"),
+		Effort:        envOrConfig("KERENSCOPE_LLM_REASONING"),
 	}, nil
 }
 

@@ -44,6 +44,9 @@ func runResearchQuestion(ctx context.Context, question string) error {
 	if err != nil {
 		return err
 	}
+	if err := ensureLLMConfig(); err != nil {
+		return err
+	}
 	provider, err := llm.ConfigFromEnv()
 	if err != nil {
 		return err

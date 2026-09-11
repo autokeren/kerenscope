@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+
+	"github.com/autokeren/kerenscope/internal/config"
 	"io"
 	"net/http"
 	"net/url"
@@ -39,6 +41,11 @@ func New(opts Options) (*Client, error) {
 	key := opts.APIKey
 	if key == "" {
 		key = os.Getenv("SECTORS_API_KEY")
+	}
+	if key == "" {
+		if v, ok := config.Get("SECTORS_API_KEY"); ok {
+			key = v
+		}
 	}
 	if key == "" {
 		return nil, errors.New("SECTORS_API_KEY is not set — create one at sectors.app/api (API Key Management)")

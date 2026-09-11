@@ -116,10 +116,15 @@ it is a single static binary. On macOS, clear the quarantine once: `xattr -d com
 ## Quickstart (30 seconds)
 
 ```bash
-export SECTORS_API_KEY="..."     # create at sectors.app/api → API Key Management
-keren company BBCA               # works with just this one key
+keren company BBCA               # no keys yet? Just run it —
+                                  # keren asks once, validates live,
+                                  # and saves to ~/.kerenscope/config
 keren doctor                     # verify the whole setup
 ```
+
+Keys can also be set as environment variables (`SECTORS_API_KEY` first;
+`KERENSCOPE_LLM_*` for research). Environment variables take precedence
+over the config file.
 
 ## Autonomous research needs an LLM too
 

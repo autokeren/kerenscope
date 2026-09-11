@@ -117,10 +117,15 @@ Di macOS, hapus karantina sekali: `xattr -d com.apple.quarantine keren`.
 ## Mulai cepat (30 detik)
 
 ```bash
-export SECTORS_API_KEY="..."     # buat di sectors.app/api → API Key Management
-keren company BBCA               # jalan hanya dengan satu key ini
+keren company BBCA               # belum punya key? Jalankan saja —
+                                  # keren bertanya sekali, memvalidasi live,
+                                  # dan menyimpan ke ~/.kerenscope/config
 keren doctor                     # periksa seluruh setup
 ```
+
+Key juga bisa diatur lewat environment variable (`SECTORS_API_KEY` dulu;
+`KERENSCOPE_LLM_*` untuk riset). Environment variable lebih diutamakan
+daripada file config.
 
 ## Riset otonom butuh LLM juga
 

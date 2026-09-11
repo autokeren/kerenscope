@@ -24,7 +24,7 @@ investigates on its own: planning, querying Sectors data, cross-checking
 evidence, and writing an evidence-backed report.
 
 Information and analysis only — not investment advice.`,
-	Version: "0.3.1",
+	Version: "0.4.0",
 	Args:  cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 {
@@ -54,5 +54,8 @@ func init() {
 }
 
 func newClient() (*sectors.Client, error) {
+	if err := ensureSectorsKey(); err != nil {
+		return nil, err
+	}
 	return sectors.New(sectors.Options{NoCache: noCache})
 }
