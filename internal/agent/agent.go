@@ -234,7 +234,7 @@ func (a *Agent) callSubmitPlan(ctx context.Context, system, question string, emi
 		if call.Name != "submit_plan" {
 			continue
 		}
-		if err := json.Unmarshal([]byte(call.Arguments), &plan); err != nil {
+		if err := json.Unmarshal([]byte(trimTrailingJSON(call.Arguments)), &plan); err != nil {
 			return Plan{}, fmt.Errorf("submit_plan arguments must be valid JSON: %w", err)
 		}
 		return plan, nil
@@ -346,7 +346,7 @@ func (a *Agent) execute(ctx context.Context, question string, plan Plan, emit fu
 			toolCallCount++
 			used = append(used, call.Name)
 			var args map[string]any
-			if err := json.Unmarshal([]byte(call.Arguments), &args); err != nil {
+			if err := json.Unmarshal([]byte(trimTrailingJSON(call.Arguments)), &args); err != nil {
 				args = map[string]any{}
 			}
 			wg.Add(1)
@@ -437,7 +437,7 @@ func (a *Agent) verify(ctx context.Context, question, draft string, store []evid
 			continue
 		}
 		var v Verification
-		if err := json.Unmarshal([]byte(call.Arguments), &v); err != nil {
+		if err := json.Unmarshal([]byte(trimTrailingJSON(call.Arguments)), &v); err != nil {
 			return Verification{Numeric: numeric}, fmt.Errorf("submit_verification arguments must be valid JSON: %w", err)
 		}
 		v.Numeric = numeric
@@ -544,4 +544,20 @@ func mustJSON(v any) string {
 		return "?"
 	}
 	return string(data)
+}
+
+func trimTrailingJSON(s string) string {
+	s = strings.TrimSpace(s)
+	for len(s) > 0 {
+		var probe any
+		if err := json.Unmarshal([]byte(s), &probe); err == nil {
+			return s
+		}
+		if s[len(s)-1] == '}' || s[len(s)-1] == ']' || s[len(s)-1] == ',' {
+			s = s[:len(s)-1]
+			continue
+		}
+		break
+	}
+	return s
 }
