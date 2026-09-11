@@ -15,6 +15,8 @@ import (
 	"golang.org/x/term"
 )
 
+const demoLLMBaseURL = "https://kerenscope-llm-demo.pyscalp.workers.dev/v1"
+
 var promptReader *bufio.Reader
 
 func reader() *bufio.Reader {
@@ -72,32 +74,68 @@ func ensureSectorsKey() error {
 	return errors.New("key validation failed 3 times — aborting")
 }
 
+func useDemoLLM() {
+	os.Setenv("KERENSCOPE_LLM_API_KEY", "demo")
+	os.Setenv("KERENSCOPE_LLM_BASE_URL", demoLLMBaseURL)
+	os.Setenv("KERENSCOPE_LLM_MODEL", "@cf/zai-org/glm-5.3-flash")
+	os.Setenv("KERENSCOPE_LLM_FALLBACK_MODEL", "@cf/zai-org/glm-5.3")
+	os.Setenv("KERENSCOPE_LLM_REASONING", "low")
+}
+
+func demoDisabled() bool {
+	return os.Getenv("KERENSCOPE_LLM_DEMO") == "0"
+}
+
 func ensureLLMConfig() error {
 	_, err := llm.ConfigFromEnv()
 	if err == nil || !errors.Is(err, llm.ErrNoAPIKey) {
 		return err
 	}
+	if demoDisabled() {
+		if !term.IsTerminal(int(os.Stdin.Fd())) {
+			return llm.ErrNoAPIKey
+		}
+		fmt.Println()
+		fmt.Printf("  %s No LLM configured and the hosted demo is disabled (KERENSCOPE_LLM_DEMO=0).\n", yellow("⚠"))
+		fmt.Printf("    %s research needs your own OpenAI-compatible key\n", dim("→"))
+		return llm.ErrNoAPIKey
+	}
 	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		return errors.New("LLM key is not set — research/compare need any OpenAI-compatible provider (KERENSCOPE_LLM_API_KEY); run keren interactively once to set it up")
+		useDemoLLM()
+		return nil
+	}
+	fmt.Println()
+	fmt.Printf("  %s No LLM configured.\n", yellow("⚠"))
+	fmt.Printf("    %s Press Enter to use the free hosted demo (GLM, rate-limited),\n", dim("→"))
+	fmt.Printf("    %s or paste your own OpenAI-compatible API key.\n", dim("→"))
+	fmt.Printf("\n  %s ", bold("Enter = hosted demo, or paste a key:"))
+	keyBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
+	fmt.Println()
+	if err != nil {
+		return err
+	}
+	key := strings.TrimSpace(string(keyBytes))
+	if key == "" {
+		useDemoLLM()
+		fmt.Printf("  %s using the hosted demo endpoint — no configuration needed\n", green("✓"))
+		if saveYes() {
+			if err := config.Save(map[string]string{
+				"KERENSCOPE_LLM_API_KEY":  "demo",
+				"KERENSCOPE_LLM_BASE_URL": demoLLMBaseURL,
+				"KERENSCOPE_LLM_MODEL":    "@cf/zai-org/glm-5.3-flash",
+			}); err != nil {
+				fmt.Printf("  %s could not save config (%v) — continuing for this session\n", yellow("⚠"), err)
+			} else {
+				fmt.Printf("  %s saved to %s — future runs will not ask\n", green("✓"), dim(config.Path()))
+			}
+		}
+		return nil
 	}
 	fmt.Println()
 	fmt.Printf("  %s Autonomous research needs an LLM (any OpenAI-compatible provider).\n", yellow("⚠"))
 	fmt.Printf("    %s OpenAI, OpenRouter, GLM, Ollama local — anything with a chat-completions endpoint\n", dim("→"))
 	for attempt := 0; attempt < 3; attempt++ {
-		fmt.Printf("\n  %s ", bold("Paste your LLM API key (input hidden, Enter to skip):"))
-		keyBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
-		fmt.Println()
-		if err != nil {
-			return err
-		}
-		key := strings.TrimSpace(string(keyBytes))
-		if key == "" {
-			fmt.Printf("  %s skipped — research needs an LLM, so this run exits here.\n", yellow("⚠"))
-			fmt.Printf("    %s keren company BBCA and keren credits work without one\n", dim("·"))
-			fmt.Printf("    %s rerun and paste a key to enable research\n", dim("·"))
-			return llm.ErrNoAPIKey
-		}
-		fmt.Printf("  %s ", bold("Base URL [https://api.openai.com/v1]:"))
+		fmt.Printf("\n  %s ", bold("Base URL [https://api.openai.com/v1]:"))
 		base := strings.TrimSpace(readLine())
 		if base == "" {
 			base = "https://api.openai.com/v1"

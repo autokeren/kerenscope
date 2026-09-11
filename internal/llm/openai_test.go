@@ -109,3 +109,19 @@ func TestNoFallbackLoopWhenSameModel(t *testing.T) {
 		t.Fatalf("must not retry when fallback equals primary model, got %d calls", calls)
 	}
 }
+
+func TestDemoHeaderAlwaysPresent(t *testing.T) {
+	var gotDemoHeader string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotDemoHeader = r.Header.Get("X-KerenScope-Demo")
+		w.Write([]byte(`{"choices":[{"message":{"content":"ok"}}]}`))
+	}))
+	defer srv.Close()
+	p := &OpenAICompat{BaseURL: srv.URL, APIKey: "k", Model: "m", Client: srv.Client()}
+	if _, err := p.Complete(context.Background(), Request{Messages: []Message{{Role: "user", Content: "hi"}}}); err != nil {
+		t.Fatal(err)
+	}
+	if gotDemoHeader != "1" {
+		t.Fatalf("expected X-KerenScope-Demo header, got %q", gotDemoHeader)
+	}
+}

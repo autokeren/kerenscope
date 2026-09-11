@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -73,11 +74,32 @@ func checkSectors(cmd *cobra.Command) bool {
 func checkLLMProvider(cmd *cobra.Command) bool {
 	provider, err := llm.ConfigFromEnv()
 	if err != nil {
-		fmt.Printf("    %s LLM key not set\n", red("✗"))
-		fmt.Printf("      %s research/compare need any OpenAI-compatible provider, e.g.:\n", dim("→"))
-		fmt.Printf("      %s\n", bold(`export KERENSCOPE_LLM_API_KEY="sk-..."`))
-		fmt.Printf("      %s\n", dim(`for GLM/OpenRouter/local Ollama also set KERENSCOPE_LLM_BASE_URL and KERENSCOPE_LLM_MODEL`))
-		return false
+		if os.Getenv("KERENSCOPE_LLM_DEMO") == "0" {
+			fmt.Printf("    %s LLM key not set and hosted demo disabled (KERENSCOPE_LLM_DEMO=0)\n", red("✗"))
+			fmt.Printf("      %s research/compare need any OpenAI-compatible provider, e.g.:\n", dim("→"))
+			fmt.Printf("      %s\n", bold(`export KERENSCOPE_LLM_API_KEY="sk-..."`))
+			return false
+		}
+		fmt.Printf("    %s no LLM key set — pinging the free hosted demo endpoint…\n", statusIcon(true))
+		demo := &llm.OpenAICompat{
+			BaseURL:       demoLLMBaseURL,
+			APIKey:        "demo",
+			Model:         "@cf/zai-org/glm-5.3-flash",
+			FallbackModel: "@cf/zai-org/glm-5.3",
+			Effort:        "low",
+			Client:        &http.Client{Timeout: 30 * time.Second},
+		}
+		ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
+		defer cancel()
+		start := time.Now()
+		if _, derr := demo.Complete(ctx, llm.Request{Messages: []llm.Message{{Role: "user", Content: "Reply with one word: ok"}}, MaxTokens: 16}); derr != nil {
+			fmt.Printf("    %s hosted demo unreachable: %s\n", red("✗"), derr)
+			fmt.Printf("      %s set your own key via KERENSCOPE_LLM_API_KEY\n", dim("→"))
+			return false
+		}
+		fmt.Printf("    %s hosted demo reachable %s\n", green("✓"), dim(fmt.Sprintf("(%s) — research works out of the box", time.Since(start).Round(time.Millisecond))))
+		fmt.Printf("      %s bring your own key any time for full speed and unlimited runs\n", dim("→"))
+		return true
 	}
 	model := os.Getenv("KERENSCOPE_LLM_MODEL")
 	if model == "" {

@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var version = "0.4.2-dev"
+
 var (
 	noCache bool
 	asJSON  bool
@@ -24,7 +26,7 @@ investigates on its own: planning, querying Sectors data, cross-checking
 evidence, and writing an evidence-backed report.
 
 Information and analysis only — not investment advice.`,
-	Version: "0.4.0",
+	Version: version,
 	Args:  cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args) > 0 {

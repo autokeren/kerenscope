@@ -145,6 +145,7 @@ func (p *OpenAICompat) completeOnce(ctx context.Context, req Request) (Response,
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	httpReq.Header.Set("Authorization", "Bearer "+p.APIKey)
+	httpReq.Header.Set("X-KerenScope-Demo", "1")
 	resp, err := p.Client.Do(httpReq)
 	if err != nil {
 		return Response{}, fmt.Errorf("llm request failed: %w", err)

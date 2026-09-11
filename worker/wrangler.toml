@@ -1,0 +1,7 @@
+name = "kerenscope-llm-demo"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[vars]
+CF_ACCOUNT_ID = "588de9697d06bc47025a4825f891125a"

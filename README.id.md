@@ -127,11 +127,12 @@ Key juga bisa diatur lewat environment variable (`SECTORS_API_KEY` dulu;
 `KERENSCOPE_LLM_*` untuk riset). Environment variable lebih diutamakan
 daripada file config.
 
-## Riset otonom butuh LLM juga
+## Riset otonom: zero-config secara default
 
-`keren research` / `keren compare` memanggil model chat-completions.
-KerenScope jalan dengan provider OpenAI-compatible mana pun —
-lihat tabel lengkapnya di [README](README.md#autonomous-research-needs-an-llm-too).
+Research dan compare **jalan langsung tanpa key LLM apa pun**. KerenScope
+otomatis memakai endpoint demo hosted gratis (GLM via KerenScope, rate-limited).
+Setup interaktif atau `keren doctor` menunjukkan mode mana yang aktif.
+Bawa key sendiri kapan pun untuk kecepatan penuh dan unlimited:
 
 ## Penggunaan
 

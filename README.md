@@ -126,10 +126,12 @@ Keys can also be set as environment variables (`SECTORS_API_KEY` first;
 `KERENSCOPE_LLM_*` for research). Environment variables take precedence
 over the config file.
 
-## Autonomous research needs an LLM too
+## Autonomous research: zero-config by default
 
-`keren research` / `keren compare` call a chat-completions model.
-KerenScope works with any OpenAI-compatible provider:
+Research and compare work **out of the box** — no LLM key needed. KerenScope
+automatically falls back to a free hosted demo endpoint (GLM via KerenScope,
+rate-limited). The interactive setup or `keren doctor` shows which mode is
+active. Bring your own key any time for full speed and unlimited runs:
 
 | Variable | Default | Meaning |
 |---|---|---|
