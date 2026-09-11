@@ -140,6 +140,7 @@ active. Bring your own key any time for full speed and unlimited runs:
 | `KERENSCOPE_LLM_API_KEY` | `OPENAI_API_KEY` fallback | LLM provider key |
 | `KERENSCOPE_LLM_MODEL` | `gpt-4o-mini` | model id |
 | `KERENSCOPE_LLM_REASONING` | auto (`high` for GLM) | reasoning effort hint |
+| `KERENSCOPE_LLM_DEMO` | unset | set `0` to disable the hosted demo fallback (forces your own key) |
 | `KERENSCOPE_LLM_FALLBACK_MODEL` | — | secondary model used automatically when the primary fails (e.g. `@cf/zai-org/glm-5.3-flash`) |
 | `KERENSCOPE_LLM_MAX_TOKENS` | `32768` | output token budget |
 | `KERENSCOPE_LLM_CALL_TIMEOUT_SECS` | `240` | per-call hard deadline (auto-retries at low effort once) |

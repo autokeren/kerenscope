@@ -20,7 +20,7 @@ Riset satu pertanyaan pasar butuh belasan tab, file spreadsheet, dan berhari-har
 
 ## S2 · Intro produk (target ≤ 15 detik)
 
-Beri pertanyaan riset apa pun tentang saham Indonesia. KerenScope merencanakan investigasinya sendiri, mengambil data dari Sectors API, menghitung metrik dengan engine deterministik, lalu memverifikasi setiap klaim sebelum menulis laporan.
+Beri pertanyaan riset apa pun tentang saham Indonesia. KerenScope merencanakan investigasinya sendiri, mengambil data dari Sectors API, menghitung metrik dengan engine deterministik, lalu memverifikasi setiap klaim sebelum menulis laporan. Semuanya jalan tanpa konfigurasi — tinggal install dan ketik.
 
 ## S3a · Demo — plan muncul (target ≤ 15 detik)
 
@@ -46,7 +46,7 @@ Hasilnya: laporan lengkap. Markdown untuk terminal, HTML untuk siapa pun — bis
 
 ## S5 · How it works (target ≤ 15 detik)
 
-Semuanya open source. Planner, executor paralel, compute engine, hybrid verifier, dan cache hemat kredit. Ditulis dari nol di Go — bukan client orang lain plus prompt.
+Semuanya open source. Planner, executor paralel, compute engine, hybrid verifier, cache hemat kredit, dan self-healing API calls. Ditulis dari nol di Go — bukan client orang lain plus prompt.
 
 ## S6 · Close (target ≤ 10 detik)
 
