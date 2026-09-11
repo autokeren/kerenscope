@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,6 +46,9 @@ func runResearchQuestion(ctx context.Context, question string) error {
 		return err
 	}
 	if err := ensureLLMConfig(); err != nil {
+		if errors.Is(err, llm.ErrNoAPIKey) {
+			return nil
+		}
 		return err
 	}
 	provider, err := llm.ConfigFromEnv()

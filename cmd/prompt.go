@@ -92,7 +92,9 @@ func ensureLLMConfig() error {
 		}
 		key := strings.TrimSpace(string(keyBytes))
 		if key == "" {
-			fmt.Printf("  %s skipped — company/credits commands still work without an LLM\n", dim("→"))
+			fmt.Printf("  %s skipped — research needs an LLM, so this run exits here.\n", yellow("⚠"))
+			fmt.Printf("    %s keren company BBCA and keren credits work without one\n", dim("·"))
+			fmt.Printf("    %s rerun and paste a key to enable research\n", dim("·"))
 			return llm.ErrNoAPIKey
 		}
 		fmt.Printf("  %s ", bold("Base URL [https://api.openai.com/v1]:"))
